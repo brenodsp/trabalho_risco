@@ -58,3 +58,15 @@ class Opcoes(Enum):
     OPCAO_13 = "Opção 13"
     OPCAO_14 = "Opção 14"
 
+class Titulos(Enum):
+    TITULO_1 = "Título 1"
+    TITULO_2 = "Título 2"
+    TITULO_3 = "Título 3"
+    TITULO_4 = "Título 4"
+    TITULO_5 = "Título 5"
+    TITULO_6 = "Título 6"
+    TITULO_7 = "Título 7"
+    TITULO_8 = "Título 8"
+    TITULO_9 = "Título 9"
+    TITULO_10 = "Título 10"
+
