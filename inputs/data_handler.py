@@ -69,3 +69,12 @@ class InputsDataHandler:
 
         return df
 
+    def fx(self) -> DataFrame:
+        df = (
+            read_excel(self._INPUTS_PATH, sheet_name="fx", skiprows=1)
+            .rename(columns={"Unnamed: 0": Indices.DATA.value})
+            .melt(id_vars=Indices.DATA.value, var_name=Indices.CAMBIO.value, value_name=Indices.VALOR.value)
+        )
+        df[Indices.CAMBIO.value] = df[Indices.CAMBIO.value].str.replace(" Curncy", "")
+
+        return df
