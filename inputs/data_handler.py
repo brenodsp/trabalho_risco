@@ -29,3 +29,11 @@ class InputsDataHandler:
         )
 
     def acoes_us(self) -> DataFrame:
+        df = (
+            read_excel(self._INPUTS_PATH, sheet_name="Acoes US")
+            .rename(columns={"Unnamed: 0": Indices.DATA.value})
+            .melt(id_vars=Indices.DATA.value, var_name=Indices.ATIVO.value, value_name=Indices.PRECO.value)
+        )
+        df[Indices.ATIVO.value] = df[Indices.ATIVO.value].str.replace(" US Equity", "")
+
+        return df
