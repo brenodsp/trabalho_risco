@@ -30,3 +30,15 @@ class AcoesBr(Enum):
     VALE = "VALE3"
     CASAS_BAHIA = "BHIA3"
 
+class AcoesUs(Enum):
+    ALCOA = "AA"
+    AMAZON = "AMZN"
+    APPLE = "AAPL"
+    ATnT = "T"
+    BANK_OF_AMERICA = "BAC"
+    GOOGLE = "GOOGL"
+    INTEL = "INTC"
+    MICROSOFT = "MSFT"
+    FORD_MOTORS = "F"
+    TESLA = "TSLA"
+
