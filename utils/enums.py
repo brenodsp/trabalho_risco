@@ -4,6 +4,7 @@ class Indices(Enum):
     ATIVO = "ativo"
     CAMBIO = "cambio"
     DATA = "data"
+    ID = "id"
     PRAZO = "prazo"
     PRECO = "preco"
     VALOR = "valor"
