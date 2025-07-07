@@ -42,3 +42,19 @@ class AcoesUs(Enum):
     FORD_MOTORS = "F"
     TESLA = "TSLA"
 
+class Opcoes(Enum):
+    OPCAO_1 = "Opção 1"
+    OPCAO_2 = "Opção 2"
+    OPCAO_3 = "Opção 3"
+    OPCAO_4 = "Opção 4"
+    OPCAO_5 = "Opção 5"
+    OPCAO_6 = "Opção 6"
+    OPCAO_7 = "Opção 7"
+    OPCAO_8 = "Opção 8"
+    OPCAO_9 = "Opção 9"
+    OPCAO_10 = "Opção 10"
+    OPCAO_11 = "Opção 11"
+    OPCAO_12 = "Opção 12"
+    OPCAO_13 = "Opção 13"
+    OPCAO_14 = "Opção 14"
+
