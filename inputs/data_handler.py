@@ -20,3 +20,12 @@ class InputsDataHandler:
             .melt(id_vars=Indices.DATA.value, var_name=Indices.ATIVO.value, value_name=Indices.PRECO.value)
         )
 
+    def ibov(self) -> DataFrame:
+        return (
+            read_excel(self._INPUTS_PATH, sheet_name="Acoes BZ e IBOV")
+            .rename(columns={"Unnamed: 0": Indices.DATA.value})
+            [[Indices.DATA.value, "IBOV"]]
+            .melt(id_vars=Indices.DATA.value, var_name=Indices.ATIVO.value, value_name=Indices.PRECO.value)
+        )
+
+    def acoes_us(self) -> DataFrame:
