@@ -52,3 +52,10 @@ class InputsDataHandler:
             .melt(id_vars=Indices.DATA.value, var_name=Indices.PRAZO.value, value_name=Indices.VALOR.value)
         )
 
+    def di(self) -> DataFrame:
+        return (
+            read_excel(self._INPUTS_PATH, sheet_name="DI", skiprows=1)
+            .rename(columns={"Unnamed: 0": Indices.DATA.value})
+            .melt(id_vars=Indices.DATA.value, var_name=Indices.PRAZO.value, value_name=Indices.VALOR.value)
+        )
+
