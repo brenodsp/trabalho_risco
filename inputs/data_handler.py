@@ -3,6 +3,7 @@ from pandas import DataFrame, read_excel
 from utils.enums import Indices
 from utils.formatters import to_snake_case
 
+
 class InputsDataHandler:
     _INPUTS_PATH = "dados\Dados trabalho 2025.xlsx"
 
@@ -78,3 +79,19 @@ class InputsDataHandler:
         df[Indices.CAMBIO.value] = df[Indices.CAMBIO.value].str.replace(" Curncy", "")
 
         return df
+    
+    def options(self) -> DataFrame:
+        # Ler Excel
+        df = (
+            read_excel(self._INPUTS_PATH, sheet_name="Dados Carteiras", skiprows=40, usecols="B:H", nrows=14)
+            .rename(columns={"Unnamed: 1": Indices.ID.value})
+        )
+
+        # Ajustar nomes das colunas
+        df.columns = [to_snake_case(col) for col in df.columns]
+
+        # Retirar sufixos da coluna "underlying"
+        df["underlying"] = df["underlying"].str.replace(" BZ Equity", "").str.replace(" Index", "")
+
+        # Renomear coluna de preços
+        df = df.rename(columns={df.columns[-1]: Indices.PRECO.value})
