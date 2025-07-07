@@ -11,3 +11,12 @@ class InputsDataHandler:
         df.columns = [to_snake_case(col) for col in df.columns]
 
         return df
+
+    def acoes_br(self) -> DataFrame:
+        return (
+            read_excel(self._INPUTS_PATH, sheet_name="Acoes BZ e IBOV")
+            .rename(columns={"Unnamed: 0": Indices.DATA.value})
+            .iloc[:, :-1]
+            .melt(id_vars=Indices.DATA.value, var_name=Indices.ATIVO.value, value_name=Indices.PRECO.value)
+        )
+
