@@ -59,3 +59,13 @@ class InputsDataHandler:
             .melt(id_vars=Indices.DATA.value, var_name=Indices.PRAZO.value, value_name=Indices.VALOR.value)
         )
 
+    def treasury(self) -> DataFrame:
+        df = (
+            read_excel(self._INPUTS_PATH, sheet_name="Treasury")
+            .rename(columns={"Unnamed: 0": Indices.DATA.value})
+            .melt(id_vars=Indices.DATA.value, var_name=Indices.PRAZO.value, value_name=Indices.VALOR.value)
+        )
+        df[Indices.PRAZO.value] = df[Indices.PRAZO.value].str.replace("Treasury ", "")
+
+        return df
+
