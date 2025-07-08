@@ -31,11 +31,18 @@ class Posicao:
             self.tipo_titulo = df[df["id"] == self.ativo.value]["tipo"].values[0]
 
     @property
+    def localidade(self) -> Localidade:
+        if isinstance(self.ativo, AcoesUs) or "Treasury" in self.tipo_titulo:
+            return Localidade.US
+        else:
+            return Localidade.BR
+
+    @property
     def fatores_risco(self) -> tuple[FatoresRisco]:
         if isinstance(self.ativo, Union[AcoesBr, AcoesUs]):
             return FatoresRisco.ACAO,
         elif isinstance(self.ativo, Opcoes):
-            return FatoresRisco.OPCAO_S, FatoresRisco.OPCAO_VOL
+            return FatoresRisco.ACAO, FatoresRisco.VOLATILIDADE
         elif isinstance(self.ativo, Titulos):
             return FatoresRisco.JUROS,
         elif isinstance(self.ativo, Futuros):
