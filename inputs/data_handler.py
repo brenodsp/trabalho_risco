@@ -133,7 +133,7 @@ class InputsDataHandler:
         df = df.rename(columns={df.columns[-1]: Indices.PRECO.value})
 
         # Dividir coluna de tamanho de contratos para extrair a moeda
-        df[['Tamanho Contrato', 'Moeda']] = df['Tamanho Contrato'].str.extract(r'([\d\.,]+)\s*\(?([A-Z]+)\)?')
+        df[["tamanho_contrato", "moeda"]] = df["tamanho_contrato"].str.extract(r'([\d\.,]+)\s*\(?([A-Z]+)\)?')
         df["tamanho_contrato"] = df["tamanho_contrato"].str.replace('.', '', regex=False)\
                                                        .str.replace(',', '.', regex=False)\
                                                        .astype(float)
