@@ -99,6 +99,21 @@ class Futuros(Enum):
     FUTURO_25 = "Futuro 25"
     FUTURO_26 = "Futuro 26"
 
+class TipoFuturo(Enum):
+    CAMBIO = auto()
+    INDICE = auto()
+    DI = ()
+
+def definir_tipo_futuro(tipo: str) -> TipoFuturo:
+    if tipo == "IBOV":
+        return TipoFuturo.INDICE
+    elif tipo == "DI":
+        return TipoFuturo.DI
+    elif "/" in tipo:
+        return TipoFuturo.CAMBIO
+    else:
+        raise ValueError("Tipo de futuro desconhecido.")
+
 class IntervaloConfianca(Enum):
     P90 = 1.2816
     P95 = 1.6449
