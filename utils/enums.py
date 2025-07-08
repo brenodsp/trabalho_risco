@@ -10,6 +10,7 @@ class Indices(Enum):
     PRECO = "preco"
     RETORNO = "retorno"
     VALOR = "valor"
+    VARIACAO = "variacao"
 
 class AcoesBr(Enum):
     IBOVESPA = "IBOV"
