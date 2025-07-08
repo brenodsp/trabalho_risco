@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Optional, Union
 
 from inputs.data_handler import InputsDataHandler
@@ -48,6 +49,8 @@ class Posicao:
         
 
 class Carteira:
+    DATA_REFERENCIA = date(2025, 5, 26)
+
     def __init__(self, inputs_data_handler: InputsDataHandler):
         self.POSICAO_1 = Posicao(AcoesBr.EMBRAER, 1500)
         self.POSICAO_2 = Posicao(AcoesBr.CASAS_BAHIA, 24500)
