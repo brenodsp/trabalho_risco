@@ -1,6 +1,6 @@
 from enum import Enum, auto
 
-class Indices(Enum):
+class Colunas(Enum):
     ATIVO = "ativo"
     CAMBIO = "cambio"
     DATA = "data"
