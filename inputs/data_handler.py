@@ -80,10 +80,10 @@ class InputsDataHandler:
 
         return df
     
-    def options(self) -> DataFrame:
+    def opcoes(self) -> DataFrame:
         # Ler Excel
         df = (
-            read_excel(self._INPUTS_PATH, sheet_name="Dados Carteiras", skiprows=40, usecols="B:H", nrows=14)
+            read_excel(self._INPUTS_PATH, sheet_name="Dados Carteiras", skiprows=40, usecols="B:H", nrows=15)
             .rename(columns={"Unnamed: 1": Indices.ID.value})
         )
 
@@ -95,3 +95,24 @@ class InputsDataHandler:
 
         # Renomear coluna de preços
         df = df.rename(columns={df.columns[-1]: Indices.PRECO.value})
+
+        return df
+
+    def titulos(self) -> DataFrame:
+        # Ler Excel
+        df = (
+            read_excel(self._INPUTS_PATH, sheet_name="Dados Carteiras", skiprows=58, usecols="B:G", nrows=11)
+            .rename(columns={"Título": Indices.ID.value})
+        )
+
+        # Ajustar nomes das colunas
+        df.columns = [to_snake_case(col) for col in df.columns]
+
+        # Renomear colunas de preços e taxas
+        df = df.rename(columns={
+            df.columns[-2]: Indices.PRECO.value,
+            df.columns[-1]: "taxa"
+        })
+
+        return df
+
