@@ -1,7 +1,7 @@
 from typing import Optional, Union
 
 from inputs.data_handler import InputsDataHandler
-from utils.enums import AcoesBr, AcoesUs, Opcoes, Titulos, Futuros, definir_tipo_futuro
+from utils.enums import AcoesBr, AcoesUs, Opcoes, Titulos, Futuros, TipoFuturo, FatoresRisco, definir_tipo_futuro
 
 
 class Posicao:
@@ -26,6 +26,26 @@ class Posicao:
             tipo_futuro = df[df["id"] == self.ativo.value]["tipo"].values[0]
             self.tipo_futuro = definir_tipo_futuro(tipo_futuro)
 
+    @property
+    def fatores_risco(self) -> tuple[FatoresRisco]:
+        if isinstance(self.ativo, Union[AcoesBr, AcoesUs]):
+            return FatoresRisco.ACAO,
+        elif isinstance(self.ativo, Opcoes):
+            return FatoresRisco.OPCAO_S, FatoresRisco.OPCAO_VOL
+        elif isinstance(self.ativo, Titulos):
+            return FatoresRisco.JUROS,
+        elif isinstance(self.ativo, Futuros):
+            if self.tipo_futuro == TipoFuturo.CAMBIO:
+                return FatoresRisco.CAMBIO,
+            elif self.tipo_futuro == TipoFuturo.DI:
+                return FatoresRisco.JUROS,
+            elif self.tipo_futuro == TipoFuturo.INDICE:
+                return FatoresRisco.ACAO,
+            else:
+                raise ValueError("Fator de risco desconhecido para o respectivo ativo.")    
+        else:
+            raise ValueError("Fator de risco desconhecido para o respectivo ativo.")    
+        
 
 class Carteira:
     def __init__(self, inputs_data_handler: InputsDataHandler):
