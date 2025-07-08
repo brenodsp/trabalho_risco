@@ -128,3 +128,7 @@ class FatoresRisco(Enum):
     JUROS = auto()
     MERCADO = auto()
     VOLATILIDADE = auto()
+
+class Localidade(Enum):
+    BR = auto()
+    US = auto()
