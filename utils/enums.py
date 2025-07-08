@@ -105,7 +105,7 @@ class Futuros(Enum):
 class TipoFuturo(Enum):
     CAMBIO = auto()
     INDICE = auto()
-    DI = ()
+    DI = auto()
 
 def definir_tipo_futuro(tipo: str) -> TipoFuturo:
     if tipo == "IBOV":
