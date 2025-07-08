@@ -1,6 +1,6 @@
 from pandas import DataFrame, read_excel
 
-from utils.enums import Indices
+from utils.enums import Colunas
 from utils.formatters import to_snake_case
 
 
@@ -17,14 +17,14 @@ class InputsDataHandler:
         # Ler e processar informações
         df = (
             read_excel(self._INPUTS_PATH, sheet_name="Acoes BZ e IBOV")
-            .rename(columns={"Unnamed: 0": Indices.DATA.value})
-            .melt(id_vars=Indices.DATA.value, var_name=Indices.ATIVO.value, value_name=Indices.PRECO.value)
+            .rename(columns={"Unnamed: 0": Colunas.DATA.value})
+            .melt(id_vars=Colunas.DATA.value, var_name=Colunas.ATIVO.value, value_name=Colunas.PRECO.value)
         )
 
-        # Realizar cálculo de retorno dos ativos
-        df[Indices.RETORNO.value] = df.sort_values(Indices.DATA.value)\
-                                      .groupby(Indices.ATIVO.value)\
-                                      [Indices.PRECO.value]\
+        # Realizar cálculo de retorno diário dos ativos
+        df[Colunas.RETORNO.value] = df.sort_values(Colunas.DATA.value)\
+                                      .groupby(Colunas.ATIVO.value)\
+                                      [Colunas.PRECO.value]\
                                       .transform(lambda row: (row/row.shift(1)) - 1)
         
         return df
@@ -33,17 +33,17 @@ class InputsDataHandler:
         # Ler e processar dados
         df = (
             read_excel(self._INPUTS_PATH, sheet_name="Acoes US")
-            .rename(columns={"Unnamed: 0": Indices.DATA.value})
-            .melt(id_vars=Indices.DATA.value, var_name=Indices.ATIVO.value, value_name=Indices.PRECO.value)
+            .rename(columns={"Unnamed: 0": Colunas.DATA.value})
+            .melt(id_vars=Colunas.DATA.value, var_name=Colunas.ATIVO.value, value_name=Colunas.PRECO.value)
         )
 
         # Limpar nomes dos ativos
-        df[Indices.ATIVO.value] = df[Indices.ATIVO.value].str.replace(" US Equity", "")
+        df[Colunas.ATIVO.value] = df[Colunas.ATIVO.value].str.replace(" US Equity", "")
 
-        # Realizar cálculo de retorno dos ativos
-        df[Indices.RETORNO.value] = df.sort_values(Indices.DATA.value)\
-                                      .groupby(Indices.ATIVO.value)\
-                                      [Indices.PRECO.value]\
+        # Realizar cálculo de retorno diário dos ativos
+        df[Colunas.RETORNO.value] = df.sort_values(Colunas.DATA.value)\
+                                      .groupby(Colunas.ATIVO.value)\
+                                      [Colunas.PRECO.value]\
                                       .transform(lambda row: (row/row.shift(1)) - 1)
 
         return df
@@ -51,41 +51,50 @@ class InputsDataHandler:
     def juros_nominal_br(self) -> DataFrame:
         return (
             read_excel(self._INPUTS_PATH, sheet_name="Juros nominal Brasil", skiprows=1)
-            .rename(columns={"Unnamed: 0": Indices.DATA.value})
-            .melt(id_vars=Indices.DATA.value, var_name=Indices.PRAZO.value, value_name=Indices.VALOR.value)
+            .rename(columns={"Unnamed: 0": Colunas.DATA.value})
+            .melt(id_vars=Colunas.DATA.value, var_name=Colunas.PRAZO.value, value_name=Colunas.VALOR.value)
         )
 
     def juros_real_br(self) -> DataFrame:
         return (
             read_excel(self._INPUTS_PATH, sheet_name="Juros Real Brasil", skiprows=1)
-            .rename(columns={"Unnamed: 0": Indices.DATA.value})
-            .melt(id_vars=Indices.DATA.value, var_name=Indices.PRAZO.value, value_name=Indices.VALOR.value)
+            .rename(columns={"Unnamed: 0": Colunas.DATA.value})
+            .melt(id_vars=Colunas.DATA.value, var_name=Colunas.PRAZO.value, value_name=Colunas.VALOR.value)
         )
 
     def di(self) -> DataFrame:
         return (
             read_excel(self._INPUTS_PATH, sheet_name="DI", skiprows=1)
-            .rename(columns={"Unnamed: 0": Indices.DATA.value})
-            .melt(id_vars=Indices.DATA.value, var_name=Indices.PRAZO.value, value_name=Indices.VALOR.value)
+            .rename(columns={"Unnamed: 0": Colunas.DATA.value})
+            .melt(id_vars=Colunas.DATA.value, var_name=Colunas.PRAZO.value, value_name=Colunas.VALOR.value)
         )
 
     def treasury(self) -> DataFrame:
         df = (
             read_excel(self._INPUTS_PATH, sheet_name="Treasury")
-            .rename(columns={"Unnamed: 0": Indices.DATA.value})
-            .melt(id_vars=Indices.DATA.value, var_name=Indices.PRAZO.value, value_name=Indices.VALOR.value)
+            .rename(columns={"Unnamed: 0": Colunas.DATA.value})
+            .melt(id_vars=Colunas.DATA.value, var_name=Colunas.PRAZO.value, value_name=Colunas.VALOR.value)
         )
-        df[Indices.PRAZO.value] = df[Indices.PRAZO.value].str.replace("Treasury ", "")
+        df[Colunas.PRAZO.value] = df[Colunas.PRAZO.value].str.replace("Treasury ", "")
 
         return df
 
     def fx(self) -> DataFrame:
+        # Ler e processar informações
         df = (
             read_excel(self._INPUTS_PATH, sheet_name="fx", skiprows=1)
-            .rename(columns={"Unnamed: 0": Indices.DATA.value})
-            .melt(id_vars=Indices.DATA.value, var_name=Indices.CAMBIO.value, value_name=Indices.VALOR.value)
+            .rename(columns={"Unnamed: 0": Colunas.DATA.value})
+            .melt(id_vars=Colunas.DATA.value, var_name=Colunas.CAMBIO.value, value_name=Colunas.VALOR.value)
         )
-        df[Indices.CAMBIO.value] = df[Indices.CAMBIO.value].str.replace(" Curncy", "")
+
+        # Limpar valores da coluna de identificação de produtos
+        df[Colunas.CAMBIO.value] = df[Colunas.CAMBIO.value].str.replace(" Curncy", "")
+
+        # Calcular variação diária dos produtos
+        df[Colunas.VARIACAO.value] = df.sort_values(Colunas.DATA.value)\
+                                       .groupby(Colunas.CAMBIO.value)\
+                                       [Colunas.VALOR.value]\
+                                       .transform(lambda row: (row/row.shift(1)) - 1)
 
         return df
     
@@ -93,7 +102,7 @@ class InputsDataHandler:
         # Ler Excel
         df = (
             read_excel(self._INPUTS_PATH, sheet_name="Dados Carteiras", skiprows=40, usecols="B:H", nrows=15)
-            .rename(columns={"Unnamed: 1": Indices.ID.value})
+            .rename(columns={"Unnamed: 1": Colunas.ID.value})
         )
 
         # Ajustar nomes das colunas
@@ -103,7 +112,7 @@ class InputsDataHandler:
         df["underlying"] = df["underlying"].str.replace(" BZ Equity", "").str.replace(" Index", "")
 
         # Renomear coluna de preços
-        df = df.rename(columns={df.columns[-1]: Indices.PRECO.value})
+        df = df.rename(columns={df.columns[-1]: Colunas.PRECO.value})
 
         return df
 
@@ -111,7 +120,7 @@ class InputsDataHandler:
         # Ler Excel
         df = (
             read_excel(self._INPUTS_PATH, sheet_name="Dados Carteiras", skiprows=58, usecols="B:G", nrows=11)
-            .rename(columns={"Título": Indices.ID.value})
+            .rename(columns={"Título": Colunas.ID.value})
         )
 
         # Ajustar nomes das colunas
@@ -119,7 +128,7 @@ class InputsDataHandler:
 
         # Renomear colunas de preços e taxas
         df = df.rename(columns={
-            df.columns[-2]: Indices.PRECO.value,
+            df.columns[-2]: Colunas.PRECO.value,
             df.columns[-1]: "taxa"
         })
 
@@ -129,7 +138,7 @@ class InputsDataHandler:
         # Ler Excel
         df = (
             read_excel(self._INPUTS_PATH, sheet_name="Dados Carteiras", skiprows=72, usecols="B:F", nrows=27)
-            .rename(columns={"Unnamed: 1": Indices.ID.value})
+            .rename(columns={"Unnamed: 1": Colunas.ID.value})
         )
 
         # Ajustar nomes das colunas
@@ -139,7 +148,7 @@ class InputsDataHandler:
         df["tipo"] = df["tipo"].str.replace(" BMF", "")
 
         # Renomear coluna de preços
-        df = df.rename(columns={df.columns[-1]: Indices.PRECO.value})
+        df = df.rename(columns={df.columns[-1]: Colunas.PRECO.value})
 
         # Dividir coluna de tamanho de contratos para extrair a moeda
         df[["tamanho_contrato", "moeda"]] = df["tamanho_contrato"].str.extract(r'([\d\.,]+)\s*\(?([A-Z]+)\)?')
