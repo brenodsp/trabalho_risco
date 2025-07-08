@@ -125,6 +125,6 @@ class IntervaloConfianca(Enum):
 class FatoresRisco(Enum):
     ACAO = auto()
     CAMBIO = auto()
-    OPCAO_S = auto()
-    OPCAO_VOL = auto()
     JUROS = auto()
+    MERCADO = auto()
+    VOLATILIDADE = auto()
