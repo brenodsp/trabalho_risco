@@ -1,5 +1,6 @@
 from typing import Optional
 
+from numpy import sqrt
 from pandas import DataFrame, Series
 
 from core.carteira import Carteira, Posicao
@@ -47,8 +48,26 @@ class CalculosFatoresRisco:
             raise ValueError("Fator de risco desconhecido.")
     
     @classmethod
-    def calcular_volatilidade(cls, df: DataFrame, lambda_: float = 0.94) -> DataFrame:
-        pass
+    def calcular_volatilidade(cls, df: DataFrame, localidade: Localidade,  lambda_: float = 0.94) -> DataFrame:
+        # Calcular variância EWMA dos ativos do mercado
+        df = CalculosFatoresRisco.variancia_ewma(
+                CalculosFatoresRisco.calcular_variacao(df, FatoresRisco.ACAO, Colunas.ATIVO, Colunas.PRECO),
+                Colunas.ATIVO,
+                lambda_
+             )
+        
+        # Definir parâmetro de ajuste de período
+        ajuste_periodo = sqrt(252) if localidade == Localidade.BR else 1.0
+
+        # Calcular volatilidade
+        df[Colunas.VOLATILIDADE.value] = df.sort_values(Colunas.DATA.value)\
+                                             .groupby(Colunas.ATIVO.value)\
+                                             .apply(lambda group:
+                                                sqrt(group[Colunas.VARIANCIA_EWMA.value]) * ajuste_periodo
+                                             )\
+                                             .reset_index()\
+                                             .iloc[:, -1]
+        return df
 
     @classmethod
     def ewma(cls, valor_calculado: Series, valor_fator_risco: Series, lambda_: float = 0.94) -> Series:
@@ -96,6 +115,7 @@ class CalculosFatoresRisco:
             ]
             return cls.calcular_volatilidade(
                 cls.calcular_variacao(df, fator_risco, Colunas.ATIVO, Colunas.PRECO),
+                localidade,
                 lambda_
             )[colunas]
         elif fator_risco == FatoresRisco.JUROS:
