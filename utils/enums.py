@@ -11,6 +11,7 @@ class Colunas(Enum):
     RETORNO = "retorno"
     VALOR = "valor"
     VARIACAO = "variacao"
+    VOLATILIDADE = "volatilidade"
 
 class AcoesBr(Enum):
     IBOVESPA = "IBOV"
