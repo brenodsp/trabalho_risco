@@ -18,8 +18,10 @@ class Posicao:
 
     def gerar_informacao_adicional(self, inputs_data_handler: Optional[InputsDataHandler]) -> None:
         # Forçar necessidade de prover inputs para certos ativos
-        if isinstance(self.ativo, Futuros) and not inputs_data_handler:
-            raise ValueError("Informações adicionais são necessárias, mas inputs não foram fornecidos.")
+        assert (
+            ((isinstance(self.ativo, Futuros) or isinstance(self.ativo, Titulos)) and inputs_data_handler) or
+            not (isinstance(self.ativo, Futuros) or isinstance(self.ativo, Titulos))
+        ), f"Informações adicionais são necessárias para o tipo de ativo: {self.ativo.name}, mas inputs não foram fornecidos."
         
         # Extrair informações adicionais
         if isinstance(self.ativo, Futuros):
@@ -32,30 +34,35 @@ class Posicao:
 
     @property
     def localidade(self) -> Localidade:
-        if isinstance(self.ativo, AcoesUs) or "Treasury" in self.tipo_titulo:
-            return Localidade.US
-        else:
+        if (not isinstance(self.ativo, AcoesUs)) and (not isinstance(self.ativo, Titulos)):
             return Localidade.BR
+        elif isinstance(self.ativo, Titulos) and "Note" not in self.tipo_titulo:
+            return Localidade.BR
+        else:
+            return Localidade.US
 
     @property
     def fatores_risco(self) -> tuple[FatoresRisco]:
+        adicional_cambio = (FatoresRisco.CAMBIO,) if self.localidade == Localidade.US else ()
         if isinstance(self.ativo, Union[AcoesBr, AcoesUs]):
-            return FatoresRisco.ACAO,
+            fatores_risco = FatoresRisco.ACAO,
         elif isinstance(self.ativo, Opcoes):
-            return FatoresRisco.ACAO, FatoresRisco.VOLATILIDADE
+            fatores_risco = FatoresRisco.ACAO, FatoresRisco.VOLATILIDADE
         elif isinstance(self.ativo, Titulos):
-            return FatoresRisco.JUROS,
+            fatores_risco = FatoresRisco.JUROS,
         elif isinstance(self.ativo, Futuros):
             if self.tipo_futuro == TipoFuturo.CAMBIO:
-                return FatoresRisco.CAMBIO,
+                fatores_risco = FatoresRisco.CAMBIO,
             elif self.tipo_futuro == TipoFuturo.DI:
-                return FatoresRisco.JUROS,
+                fatores_risco = FatoresRisco.JUROS,
             elif self.tipo_futuro == TipoFuturo.INDICE:
-                return FatoresRisco.ACAO,
+                fatores_risco = FatoresRisco.ACAO,
             else:
                 raise ValueError("Fator de risco desconhecido para o respectivo ativo.")    
         else:
-            raise ValueError("Fator de risco desconhecido para o respectivo ativo.")    
+            raise ValueError("Fator de risco desconhecido para o respectivo ativo.")
+        
+        return tuple(set(fatores_risco + adicional_cambio))
         
 
 class Carteira:
@@ -69,4 +76,4 @@ class Carteira:
         self.POSICAO_5 = Posicao(Futuros.FUTURO_15, 0.6, inputs_data_handler)
         self.POSICAO_6 = Posicao(Futuros.FUTURO_9, 0.2, inputs_data_handler)
         self.POSICAO_7 = Posicao(Futuros.FUTURO_25, 1700, inputs_data_handler)
-        self.POSICAO_8 = Posicao(Titulos.TITULO_9, 250000)
+        self.POSICAO_8 = Posicao(Titulos.TITULO_9, 250000, inputs_data_handler)
