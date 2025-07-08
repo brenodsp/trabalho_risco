@@ -1,6 +1,6 @@
 from typing import Optional
 
-from pandas import DataFrame
+from pandas import DataFrame, Series
 
 from core.carteira import Carteira, Posicao
 from inputs.data_handler import InputsDataHandler
@@ -51,8 +51,26 @@ class CalculosFatoresRisco:
         pass
 
     @classmethod
-    def variancia_ewma(cls, df: DataFrame, lambda_: float = 0.94) -> DataFrame:
+    def ewma(cls, valor_calculado: Series, valor_fator_risco: Series, lambda_: float = 0.94) -> Series:
+        return lambda_ * valor_calculado.shift(1) + (1 - lambda_) * valor_fator_risco
+
+    @classmethod
+    def variancia_ewma(cls, df: DataFrame, agrupar_por: Colunas, lambda_: float = 0.94) -> DataFrame:
+        # Validar valor do lambda
         assert lambda_ >= 0 and lambda_ <= 1, "Parâmetro lambda fora do domínio (entre 0 e 1)."
+
+        # Iniciar modelo
+        df[Colunas.VARIANCIA_EWMA.value] = 0.0
+
+        # Efetuar cálculo de variância seguindo modelo EWMA
+        df[Colunas.VARIANCIA_EWMA.value] = df.sort_values(Colunas.DATA.value)\
+                                             .groupby(agrupar_por.value)\
+                                             .apply(lambda group: cls.ewma(
+                                                 group[Colunas.VARIANCIA_EWMA.value], group[Colunas.VARIACAO.value] ** 2, lambda_
+                                             ))\
+                                             .reset_index()\
+                                             [0]
+        return df
 
     
     @classmethod
