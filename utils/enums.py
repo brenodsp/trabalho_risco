@@ -4,9 +4,11 @@ class Indices(Enum):
     ATIVO = "ativo"
     CAMBIO = "cambio"
     DATA = "data"
+    DELTA = "delta"
     ID = "id"
     PRAZO = "prazo"
     PRECO = "preco"
+    RETORNO = "retorno"
     VALOR = "valor"
 
 class AcoesBr(Enum):
