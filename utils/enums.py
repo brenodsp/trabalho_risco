@@ -103,3 +103,9 @@ class IntervaloConfianca(Enum):
     P90 = 1.2816
     P95 = 1.6449
     P99 = 2.3263
+
+class FatoresRisco(Enum):
+    ACAO = auto()
+    OPCAO_S = auto()
+    OPCAO_VOL = auto()
+    JUROS = auto()
