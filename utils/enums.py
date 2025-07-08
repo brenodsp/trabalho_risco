@@ -98,3 +98,8 @@ class Futuros(Enum):
     FUTURO_24 = "Futuro 24"
     FUTURO_25 = "Futuro 25"
     FUTURO_26 = "Futuro 26"
+
+class IntervaloConfianca(Enum):
+    P90 = 1.2816
+    P95 = 1.6449
+    P99 = 2.3263
