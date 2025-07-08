@@ -2,7 +2,7 @@ from datetime import date
 from typing import Optional, Union
 
 from inputs.data_handler import InputsDataHandler
-from utils.enums import AcoesBr, AcoesUs, Opcoes, Titulos, Futuros, TipoFuturo, FatoresRisco, definir_tipo_futuro
+from utils.enums import AcoesBr, AcoesUs, Opcoes, Titulos, Futuros, TipoFuturo, FatoresRisco, Localidade, definir_tipo_futuro
 
 
 class Posicao:
@@ -26,6 +26,9 @@ class Posicao:
             df = inputs_data_handler.futuros()
             tipo_futuro = df[df["id"] == self.ativo.value]["tipo"].values[0]
             self.tipo_futuro = definir_tipo_futuro(tipo_futuro)
+        elif isinstance(self.ativo, Titulos):
+            df = inputs_data_handler.titulos()
+            self.tipo_titulo = df[df["id"] == self.ativo.value]["tipo"].values[0]
 
     @property
     def fatores_risco(self) -> tuple[FatoresRisco]:
