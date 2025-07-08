@@ -14,28 +14,37 @@ class InputsDataHandler:
         return df
 
     def acoes_br(self) -> DataFrame:
-        return (
+        # Ler e processar informações
+        df = (
             read_excel(self._INPUTS_PATH, sheet_name="Acoes BZ e IBOV")
             .rename(columns={"Unnamed: 0": Indices.DATA.value})
-            .iloc[:, :-1]
             .melt(id_vars=Indices.DATA.value, var_name=Indices.ATIVO.value, value_name=Indices.PRECO.value)
         )
 
-    def ibov(self) -> DataFrame:
-        return (
-            read_excel(self._INPUTS_PATH, sheet_name="Acoes BZ e IBOV")
-            .rename(columns={"Unnamed: 0": Indices.DATA.value})
-            [[Indices.DATA.value, "IBOV"]]
-            .melt(id_vars=Indices.DATA.value, var_name=Indices.ATIVO.value, value_name=Indices.PRECO.value)
-        )
+        # Realizar cálculo de retorno dos ativos
+        df[Indices.RETORNO.value] = df.sort_values(Indices.DATA.value)\
+                                      .groupby(Indices.ATIVO.value)\
+                                      [Indices.PRECO.value]\
+                                      .transform(lambda row: (row/row.shift(1)) - 1)
+        
+        return df
 
     def acoes_us(self) -> DataFrame:
+        # Ler e processar dados
         df = (
             read_excel(self._INPUTS_PATH, sheet_name="Acoes US")
             .rename(columns={"Unnamed: 0": Indices.DATA.value})
             .melt(id_vars=Indices.DATA.value, var_name=Indices.ATIVO.value, value_name=Indices.PRECO.value)
         )
+
+        # Limpar nomes dos ativos
         df[Indices.ATIVO.value] = df[Indices.ATIVO.value].str.replace(" US Equity", "")
+
+        # Realizar cálculo de retorno dos ativos
+        df[Indices.RETORNO.value] = df.sort_values(Indices.DATA.value)\
+                                      .groupby(Indices.ATIVO.value)\
+                                      [Indices.PRECO.value]\
+                                      .transform(lambda row: (row/row.shift(1)) - 1)
 
         return df
 
