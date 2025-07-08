@@ -116,3 +116,25 @@ class InputsDataHandler:
 
         return df
 
+    def futuros(self) -> DataFrame:
+        # Ler Excel
+        df = (
+            read_excel(self._INPUTS_PATH, sheet_name="Dados Carteiras", skiprows=72, usecols="B:F", nrows=27)
+            .rename(columns={"Unnamed: 1": Indices.ID.value})
+        )
+
+        # Ajustar nomes das colunas
+        df.columns = [to_snake_case(col) for col in df.columns]
+
+        # Remover sufixos da coluna de tipo
+        df["tipo"] = df["tipo"].str.replace(" BMF", "")
+
+        # Renomear coluna de preços
+        df = df.rename(columns={df.columns[-1]: Indices.PRECO.value})
+
+        # Dividir coluna de tamanho de contratos para extrair a moeda
+        df[['Tamanho Contrato', 'Moeda']] = df['Tamanho Contrato'].str.extract(r'([\d\.,]+)\s*\(?([A-Z]+)\)?')
+        df["tamanho_contrato"] = df["tamanho_contrato"].str.replace('.', '', regex=False)\
+                                                       .str.replace(',', '.', regex=False)\
+                                                       .astype(float)
+        return df
