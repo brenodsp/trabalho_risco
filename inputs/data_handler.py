@@ -1,6 +1,7 @@
 from pandas import DataFrame, read_excel
 
-from utils.enums import Colunas
+from core.fatores_risco.fatores_risco import CalculosFatoresRisco
+from utils.enums import Colunas, FatoresRisco
 from utils.formatters import to_snake_case
 
 
@@ -22,12 +23,12 @@ class InputsDataHandler:
         )
 
         # Realizar cálculo de retorno diário dos ativos
-        df[Colunas.RETORNO.value] = df.sort_values(Colunas.DATA.value)\
-                                      .groupby(Colunas.ATIVO.value)\
-                                      [Colunas.PRECO.value]\
-                                      .transform(lambda row: (row/row.shift(1)) - 1)
-        
-        return df
+        return CalculosFatoresRisco.calcular_variacao(
+            df,
+            FatoresRisco.ACAO,
+            Colunas.ATIVO,
+            Colunas.PRECO
+        )
 
     def acoes_us(self) -> DataFrame:
         # Ler e processar dados
@@ -41,12 +42,12 @@ class InputsDataHandler:
         df[Colunas.ATIVO.value] = df[Colunas.ATIVO.value].str.replace(" US Equity", "")
 
         # Realizar cálculo de retorno diário dos ativos
-        df[Colunas.RETORNO.value] = df.sort_values(Colunas.DATA.value)\
-                                      .groupby(Colunas.ATIVO.value)\
-                                      [Colunas.PRECO.value]\
-                                      .transform(lambda row: (row/row.shift(1)) - 1)
-
-        return df
+        return CalculosFatoresRisco.calcular_variacao(
+            df,
+            FatoresRisco.ACAO,
+            Colunas.ATIVO,
+            Colunas.PRECO
+        )
 
     def juros_nominal_br(self) -> DataFrame:
         return (
@@ -91,12 +92,12 @@ class InputsDataHandler:
         df[Colunas.CAMBIO.value] = df[Colunas.CAMBIO.value].str.replace(" Curncy", "")
 
         # Calcular variação diária dos produtos
-        df[Colunas.VARIACAO.value] = df.sort_values(Colunas.DATA.value)\
-                                       .groupby(Colunas.CAMBIO.value)\
-                                       [Colunas.VALOR.value]\
-                                       .transform(lambda row: (row/row.shift(1)) - 1)
-
-        return df
+        return CalculosFatoresRisco.calcular_variacao(
+            df,
+            FatoresRisco.CAMBIO,
+            Colunas.CAMBIO,
+            Colunas.VALOR
+        )
     
     def opcoes(self) -> DataFrame:
         # Ler Excel
