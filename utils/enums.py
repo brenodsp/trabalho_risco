@@ -11,6 +11,7 @@ class Colunas(Enum):
     RETORNO = "retorno"
     VALOR = "valor"
     VARIACAO = "variacao"
+    VARIANCIA_EWMA = "variancia_ewma"
     VOLATILIDADE = "volatilidade"
 
 class AcoesBr(Enum):
