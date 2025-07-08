@@ -1,6 +1,5 @@
 from pandas import DataFrame, read_excel
 
-from core.fatores_risco.fatores_risco import CalculosFatoresRisco
 from utils.enums import Colunas, FatoresRisco
 from utils.formatters import to_snake_case
 
@@ -16,18 +15,10 @@ class InputsDataHandler:
 
     def acoes_br(self) -> DataFrame:
         # Ler e processar informações
-        df = (
+        return (
             read_excel(self._INPUTS_PATH, sheet_name="Acoes BZ e IBOV")
             .rename(columns={"Unnamed: 0": Colunas.DATA.value})
             .melt(id_vars=Colunas.DATA.value, var_name=Colunas.ATIVO.value, value_name=Colunas.PRECO.value)
-        )
-
-        # Realizar cálculo de retorno diário dos ativos
-        return CalculosFatoresRisco.calcular_variacao(
-            df,
-            FatoresRisco.ACAO,
-            Colunas.ATIVO,
-            Colunas.PRECO
         )
 
     def acoes_us(self) -> DataFrame:
@@ -42,12 +33,7 @@ class InputsDataHandler:
         df[Colunas.ATIVO.value] = df[Colunas.ATIVO.value].str.replace(" US Equity", "")
 
         # Realizar cálculo de retorno diário dos ativos
-        return CalculosFatoresRisco.calcular_variacao(
-            df,
-            FatoresRisco.ACAO,
-            Colunas.ATIVO,
-            Colunas.PRECO
-        )
+        return df
 
     def juros_nominal_br(self) -> DataFrame:
         return (
@@ -92,12 +78,7 @@ class InputsDataHandler:
         df[Colunas.CAMBIO.value] = df[Colunas.CAMBIO.value].str.replace(" Curncy", "")
 
         # Calcular variação diária dos produtos
-        return CalculosFatoresRisco.calcular_variacao(
-            df,
-            FatoresRisco.CAMBIO,
-            Colunas.CAMBIO,
-            Colunas.VALOR
-        )
+        return df
     
     def opcoes(self) -> DataFrame:
         # Ler Excel
