@@ -119,13 +119,15 @@ class CalculosFatoresRisco:
                 lambda_
             )[colunas]
         elif fator_risco == FatoresRisco.JUROS:
+            #TODO: Fazer regra para o fator de risco de juros
             pass
         elif fator_risco == FatoresRisco.CAMBIO:
+            df = inputs.fx()
             colunas = [
                 Colunas.DATA.value,
                 Colunas.CAMBIO.value,
                 Colunas.VARIACAO.value
             ]
-            return cls.calcular_variacao(df, fator_risco, Colunas.ATIVO, Colunas.PRECO)[colunas]
+            return cls.calcular_variacao(df, fator_risco, Colunas.CAMBIO, Colunas.VALOR)[colunas]
         else:
             raise ValueError("Fator de risco inválido.")
