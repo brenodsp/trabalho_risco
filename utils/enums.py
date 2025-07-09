@@ -93,6 +93,17 @@ class Titulos(Enum):
     TITULO_9 = "Título 9"
     TITULO_10 = "Título 10"
 
+class TipoTitulo(Enum):
+    NTNB = "NTN-B"
+    NTNF = "NTN-F"
+    TREASURY = "Teasury Note"
+
+def definir_tipo_titulo(tipo: str) -> TipoTitulo:
+    try:
+        return TipoTitulo._value2member_map_[tipo]
+    except:
+        raise ValueError("Produto não encontrado.")
+
 class Futuros(Enum):
     FUTURO_1 = "Futuro 1"
     FUTURO_2 = "Futuro 2"
