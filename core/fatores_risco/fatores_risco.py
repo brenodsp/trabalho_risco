@@ -1,4 +1,4 @@
-from itertools import chain
+from datetime import date
 from typing import Optional
 
 from arch import arch_model
@@ -6,12 +6,18 @@ from numpy import array, diag, sqrt
 from pandas import DataFrame, Series, concat
 
 from core.carteira import Carteira, Posicao
+from core.renda_fixa.renda_fixa import RendaFixa
 from inputs.data_handler import InputsDataHandler
 from utils.enums import Colunas, FatoresRisco, Localidade
 
 
 class MatrizFatoresRisco:
-    def __init__(self, carteira: Carteira, inputs: InputsDataHandler, lambda_: float = 0.94):
+    def __init__(
+            self, 
+            carteira: Carteira, 
+            inputs: InputsDataHandler, 
+            lambda_: float = 0.94
+    ):
         self.carteira = carteira
         self.inputs = inputs
         self.lambda_ = lambda_
@@ -24,30 +30,35 @@ class MatrizFatoresRisco:
         lista_fatores_risco = []
         for p in posicoes:
             for fr in p.fatores_risco:
-                if fr == FatoresRisco.JUROS:
-                    continue
-
                 # Consultar dado cru
                 df = CalculosFatoresRisco.definir_variacao_fator_risco(
                         fr,
                         p.localidade,
                         self.inputs,
                         p,
-                        self.lambda_
-                     )
+                        self.lambda_,
+                        self.carteira.DATA_REFERENCIA
+                )
                 
                 # Definir filtro a ser utilizado sobre o dataframe de fatores de risco
                 if fr == FatoresRisco.ACAO:
                     filtro = p.ativo.value
+                    nome_serie = p.ativo.name
                 elif (fr == FatoresRisco.CAMBIO) and (len(p.fatores_risco) > 1):
                     filtro = "USDBRL"
+                    nome_serie = "USDBRL"
+                elif fr == FatoresRisco.JUROS:
+                    df = df.drop(Colunas.VALOR.value, axis=1)
+                    filtro = None
+                    nome_serie = p.produto.name
                 else: 
                     filtro = p.produto.value.replace("/", "")
+                    nome_serie = p.produto.name
 
                 # Normalizar formato
                 df.columns = [Colunas.DATA.value, Colunas.ATIVO.value, Colunas.VALOR.value]
-                df = df.loc[df[Colunas.ATIVO.value] == filtro]
-                df[Colunas.ATIVO.value] = p.ativo.name
+                df = df.loc[df[Colunas.ATIVO.value] == filtro] if fr != FatoresRisco.JUROS else df
+                df[Colunas.ATIVO.value] = nome_serie
 
                 lista_fatores_risco.append(df)
         
@@ -184,10 +195,11 @@ class CalculosFatoresRisco:
         localidade: Localidade,
         inputs: InputsDataHandler,
         posicao: Optional[Posicao] = None,
-        lambda_: float = 0.94
+        lambda_: float = 0.94,
+        data_referencia: Optional[date] = None
     ) -> DataFrame:
         # Checar se posição é fornecida para o caso de fator de risco de juros
-        assert (fator_risco != FatoresRisco.JUROS) or ((fator_risco == FatoresRisco.JUROS) and posicao), "Posição deve ser fornecida para o fator de risco de juros."
+        assert (fator_risco != FatoresRisco.JUROS) or ((fator_risco == FatoresRisco.JUROS) and posicao and data_referencia), "Posição e data de referência devem ser fornecida para o fator de risco de juros."
         assert localidade in [Localidade.BR, Localidade.US], "Localidade desconhecida"
 
         # Retornar variação do fator de risco, considerando a localidade
@@ -204,8 +216,15 @@ class CalculosFatoresRisco:
                 lambda_
             )[colunas]
         elif fator_risco == FatoresRisco.JUROS:
-            #TODO: Fazer regra para o fator de risco de juros
-            pass
+            df = RendaFixa(
+                data_referencia,
+                posicao.vencimento,
+                localidade,
+                inputs,
+                posicao.cupom,
+                posicao.taxa
+            ).curva_juros()
+            return cls.calcular_variacao(df, fator_risco, Colunas.PRAZO, Colunas.VALOR)
         elif fator_risco == FatoresRisco.CAMBIO:
             df = inputs.fx()
             colunas = [

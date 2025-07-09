@@ -9,9 +9,11 @@ class Colunas(Enum):
     PRAZO = "prazo"
     PRECO = "preco"
     RETORNO = "retorno"
+    TIPO = "tipo"
     VALOR = "valor"
     VARIACAO = "variacao"
     VARIANCIA_EWMA = "variancia_ewma"
+    VENCIMENTO = "vencimento"
     VOLATILIDADE = "volatilidade"
 
 class AcoesBr(Enum):
@@ -90,6 +92,17 @@ class Titulos(Enum):
     TITULO_8 = "Título 8"
     TITULO_9 = "Título 9"
     TITULO_10 = "Título 10"
+
+class TipoTitulo(Enum):
+    NTNB = "NTN-B"
+    NTNF = "NTN-F"
+    TREASURY = "Teasury Note"
+
+def definir_tipo_titulo(tipo: str) -> TipoTitulo:
+    try:
+        return TipoTitulo._value2member_map_[tipo]
+    except:
+        raise ValueError("Produto não encontrado.")
 
 class Futuros(Enum):
     FUTURO_1 = "Futuro 1"

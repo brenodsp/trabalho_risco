@@ -1,6 +1,6 @@
 from pandas import DataFrame, read_excel
 
-from utils.enums import Colunas, FatoresRisco
+from utils.enums import Colunas
 from utils.formatters import to_snake_case
 
 

@@ -1,8 +1,9 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from core.carteira import Carteira
 from inputs.data_handler import InputsDataHandler
 from core.fatores_risco.fatores_risco import CalculosFatoresRisco, MatrizFatoresRisco
+from core.renda_fixa.renda_fixa import RendaFixa
 from utils.enums import IntervaloConfianca, FatoresRisco, Colunas, Localidade
 
 # Pegar inputs
