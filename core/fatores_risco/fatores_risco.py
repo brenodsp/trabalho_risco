@@ -1,7 +1,8 @@
 from itertools import chain
 from typing import Optional
 
-from numpy import sqrt
+from arch import arch_model
+from numpy import array, diag, sqrt
 from pandas import DataFrame, Series, concat
 
 from core.carteira import Carteira, Posicao
@@ -68,14 +69,35 @@ class MatrizFatoresRisco:
             cov_ewma = lambda_ * cov_ewma + (1 - lambda_) * (r_t @ r_t.T)
         return DataFrame(cov_ewma, index=retornos.columns, columns=retornos.columns)
 
-        # Calcular covariância com ajuste EWMA
-        def aplicar_ewma(linha: Series) -> Series:
-            pass
+    def matriz_cov_garch(self) -> DataFrame:
+        df_retornos = self.fatores_risco_carteira()
+        modelos_garch = {}
+        volatilidades = {}
 
-        cov_ewma = cov.apply(lambda linha: aplicar_ewma(linha), axis=1)
+        for coluna in df_retornos.columns:
+            serie = df_retornos[coluna].dropna()
+            modelo = arch_model(serie, vol='Garch', p=1, q=1)
+            resultado = modelo.fit(disp="off")
+            modelos_garch[coluna] = resultado
 
-    def cov_garch(self) -> DataFrame:
-        pass
+            # Extrai volatilidade condicional estimada
+            volatilidades[coluna] = resultado.conditional_volatility
+
+        # Usar correlação empírica entre retornos (últimos N dias)
+        corr_matrix = df_retornos.corr()
+
+        # Pegar as últimas volatilidades estimadas (último valor de cada série)
+        vols_hoje = {k: v.iloc[-1] for k, v in volatilidades.items()}
+
+        # Criar matriz de volatilidades
+        vol_array = array([vols_hoje[col] for col in df_retornos.columns])
+        vol_matrix = diag(vol_array)
+
+        # Covariância = Corr * Vol_i * Vol_j
+        cov_garch = vol_matrix @ corr_matrix.values @ vol_matrix
+
+        # Montar DataFrame da matriz final
+        return DataFrame(cov_garch, index=df_retornos.columns, columns=df_retornos.columns)
 
 
 class CalculosFatoresRisco:
