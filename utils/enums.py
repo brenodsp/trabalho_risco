@@ -77,7 +77,7 @@ def definir_produto_opcao(produto: str) -> ProdutosOpcoes:
     resultado = [n for n in ProdutosOpcoes._member_names_ if produto in n]
     assert len(resultado) != 0, "Produto não encontrado."
     assert len(resultado) == 1, "Produto ambíguo."
-    return resultado[0]
+    return ProdutosOpcoes[resultado[0]]
 
 class Titulos(Enum):
     TITULO_1 = "Título 1"
