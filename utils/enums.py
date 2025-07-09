@@ -9,9 +9,11 @@ class Colunas(Enum):
     PRAZO = "prazo"
     PRECO = "preco"
     RETORNO = "retorno"
+    TIPO = "tipo"
     VALOR = "valor"
     VARIACAO = "variacao"
     VARIANCIA_EWMA = "variancia_ewma"
+    VENCIMENTO = "vencimento"
     VOLATILIDADE = "volatilidade"
 
 class AcoesBr(Enum):
