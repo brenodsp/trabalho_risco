@@ -120,19 +120,19 @@ class Futuros(Enum):
     FUTURO_26 = "Futuro 26"
 
 class TipoFuturo(Enum):
-    CAMBIO = auto()
-    INDICE = auto()
-    DI = auto()
+    EURUSD = "EUR/USD"
+    DI = "DI"
+    IBOV = "IBOV"
+    USDBRL = "USD/BRL"
+    USDCAD = "USD/CAD"
+    USDJPY = "USD/JPY"
+    USDMXN = "USD/MXN"
 
 def definir_tipo_futuro(tipo: str) -> TipoFuturo:
-    if tipo == "IBOV":
-        return TipoFuturo.INDICE
-    elif tipo == "DI":
-        return TipoFuturo.DI
-    elif "/" in tipo:
-        return TipoFuturo.CAMBIO
-    else:
-        raise ValueError("Tipo de futuro desconhecido.")
+    try:
+        return TipoFuturo._value2member_map_[tipo]
+    except:
+        raise ValueError("Produto não encontrado.")
 
 class IntervaloConfianca(Enum):
     P90 = 1.2816
