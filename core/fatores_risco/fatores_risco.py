@@ -1,7 +1,8 @@
+from itertools import chain
 from typing import Optional
 
 from numpy import sqrt
-from pandas import DataFrame, Series
+from pandas import DataFrame, Series, concat
 
 from core.carteira import Carteira, Posicao
 from inputs.data_handler import InputsDataHandler
@@ -9,8 +10,57 @@ from utils.enums import Colunas, FatoresRisco, Localidade
 
 
 class MatrizFatoresRisco:
-    def __init__(self, carteira: Carteira):
+    def __init__(self, carteira: Carteira, inputs: InputsDataHandler, lambda_: float = 0.94):
         self.carteira = carteira
+        self.inputs = inputs
+        self.lambda_ = lambda_
+
+    def fatores_risco_carteira(self) -> DataFrame:
+        # Extrair posições
+        posicoes: list[Posicao] = [p for p in self.carteira.__dict__.values()]
+
+        # Iterar posições para extrair dados sobre cada um dos fatores de risco
+        lista_fatores_risco = []
+        for p in posicoes:
+            for fr in p.fatores_risco:
+                if fr == FatoresRisco.JUROS:
+                    continue
+
+                # Consultar dado cru
+                df = CalculosFatoresRisco.definir_variacao_fator_risco(
+                        fr,
+                        p.localidade,
+                        self.inputs,
+                        p,
+                        self.lambda_
+                     )
+                
+                # Definir filtro a ser utilizado sobre o dataframe de fatores de risco
+                if fr == FatoresRisco.ACAO:
+                    filtro = p.ativo.value
+                elif (fr == FatoresRisco.CAMBIO) and (len(p.fatores_risco) > 1):
+                    filtro = "USDBRL"
+                else: 
+                    filtro = p.produto.value.replace("/", "")
+
+                # Normalizar formato
+                df.columns = [Colunas.DATA.value, Colunas.ATIVO.value, Colunas.VALOR.value]
+                df = df.loc[df[Colunas.ATIVO.value] == filtro]
+                df[Colunas.ATIVO.value] = p.ativo.name
+
+                lista_fatores_risco.append(df)
+        
+        # Produzir dataframe contendo todos os fatores de risco da carteira
+        dados_fatores_risco = concat(lista_fatores_risco).drop_duplicates(subset=[Colunas.DATA.value, Colunas.ATIVO.value])
+
+        return dados_fatores_risco.pivot(
+            index=Colunas.DATA.value,
+            columns=Colunas.ATIVO.value,
+            values=Colunas.VALOR.value
+        ).dropna()
+    
+    def cov(self) -> DataFrame:
+        return self.fatores_risco_carteira()
 
     def cov_ewma(self) -> DataFrame:
         pass
