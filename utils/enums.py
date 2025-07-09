@@ -1,13 +1,18 @@
 from enum import Enum, auto
 
-class Indices(Enum):
+class Colunas(Enum):
     ATIVO = "ativo"
     CAMBIO = "cambio"
     DATA = "data"
+    DELTA = "delta"
     ID = "id"
     PRAZO = "prazo"
     PRECO = "preco"
+    RETORNO = "retorno"
     VALOR = "valor"
+    VARIACAO = "variacao"
+    VARIANCIA_EWMA = "variancia_ewma"
+    VOLATILIDADE = "volatilidade"
 
 class AcoesBr(Enum):
     IBOVESPA = "IBOV"
@@ -59,6 +64,21 @@ class Opcoes(Enum):
     OPCAO_13 = "Opção 13"
     OPCAO_14 = "Opção 14"
 
+class ProdutosOpcoes(Enum):
+    ABEV3 = "AMBV3"
+    IBOVE = "IBOV"
+    O_B3SA3 = "B3SA3"
+    O_BBDC4 = "BBDC4"
+    O_LREN3 = "LREN3"
+    O_PETR4 = "PETR4"
+    O_VALE3 = "VALE3"
+
+def definir_produto_opcao(produto: str) -> ProdutosOpcoes:
+    resultado = [n for n in ProdutosOpcoes._member_names_ if produto in n]
+    assert len(resultado) != 0, "Produto não encontrado."
+    assert len(resultado) == 1, "Produto ambíguo."
+    return ProdutosOpcoes[resultado[0]]
+
 class Titulos(Enum):
     TITULO_1 = "Título 1"
     TITULO_2 = "Título 2"
@@ -98,3 +118,34 @@ class Futuros(Enum):
     FUTURO_24 = "Futuro 24"
     FUTURO_25 = "Futuro 25"
     FUTURO_26 = "Futuro 26"
+
+class TipoFuturo(Enum):
+    EURUSD = "EUR/USD"
+    DI = "DI"
+    IBOV = "IBOV"
+    USDBRL = "USD/BRL"
+    USDCAD = "USD/CAD"
+    USDJPY = "USD/JPY"
+    USDMXN = "USD/MXN"
+
+def definir_tipo_futuro(tipo: str) -> TipoFuturo:
+    try:
+        return TipoFuturo._value2member_map_[tipo]
+    except:
+        raise ValueError("Produto não encontrado.")
+
+class IntervaloConfianca(Enum):
+    P90 = 1.2816
+    P95 = 1.6449
+    P99 = 2.3263
+
+class FatoresRisco(Enum):
+    ACAO = auto()
+    CAMBIO = auto()
+    JUROS = auto()
+    MERCADO = auto()
+    VOLATILIDADE = auto()
+
+class Localidade(Enum):
+    BR = auto()
+    US = auto()
