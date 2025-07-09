@@ -1,9 +1,9 @@
 from datetime import date
-from typing import Optional, Union
+from typing import Union
 
 from inputs.data_handler import InputsDataHandler
-from utils.enums import Colunas, AcoesBr, AcoesUs, Opcoes, Titulos, Futuros, TipoFuturo, FatoresRisco, Localidade, \
-                        definir_tipo_futuro, definir_produto_opcao
+from utils.enums import Colunas, AcoesBr, AcoesUs, Opcoes, Titulos, Futuros, TipoFuturo, TipoTitulo, FatoresRisco, Localidade, \
+                        definir_tipo_futuro, definir_produto_opcao, definir_tipo_titulo
 
 
 class Posicao:
@@ -26,7 +26,8 @@ class Posicao:
             self.produto = definir_tipo_futuro(tipo_futuro)
         elif isinstance(self.ativo, Titulos):
             df = inputs_data_handler.titulos()
-            self.produto = df[df["id"] == self.ativo.value]["tipo"].values[0]
+            produto = df[df["id"] == self.ativo.value]["tipo"].values[0]
+            self.produto = definir_tipo_titulo(produto)
         elif isinstance(self.ativo, Opcoes):
             df = inputs_data_handler.opcoes()
             produto = df[df["id"] == self.ativo.value]["underlying"].values[0]
@@ -57,7 +58,7 @@ class Posicao:
     def localidade(self) -> Localidade:
         if (not isinstance(self.ativo, AcoesUs)) and (not isinstance(self.ativo, Titulos)):
             return Localidade.BR
-        elif isinstance(self.ativo, Titulos) and "Note" not in self.produto:
+        elif isinstance(self.ativo, Titulos) and not self.produto == TipoTitulo.TREASURY:
             return Localidade.BR
         else:
             return Localidade.US
