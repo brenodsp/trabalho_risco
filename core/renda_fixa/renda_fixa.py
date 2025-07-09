@@ -80,3 +80,44 @@ class RendaFixa:
         # Identificar produto cujo vértice é mais significativo
         return min(treasuries, key=lambda k: abs(treasuries[k] - delta_anos))
 
+    def curva_juros(self) -> DataFrame:
+        if self.localidade == Localidade.US:
+            df = self.inputs_data_handler.treasury()
+            df = df.loc[df[Colunas.PRAZO.value] == self.periodo]
+            return df
+        elif self.localidade == Localidade.BR:
+            return self._definir_curva_di()
+        else:
+            ValueError("Localidade desconhecida.")
+    
+    def _definir_curva_di(self) -> DataFrame:
+        # Carregar curvas DI
+        di = self.inputs_data_handler.di()
+
+        # Checar se existe algum produto com o mesmo du calculado e entregar curva específica, se houver
+        du = self.periodo
+        if du in di[Colunas.PRAZO.value].drop_duplicates().to_list():
+            return di.loc[di[Colunas.PRAZO.value] == du]
+        
+        # Caso contrário, calcular curva interpolada
+        vertice_inferior = di[Colunas.PRAZO.value].drop_duplicates().loc[di[Colunas.PRAZO.value] < du].max()
+        vertice_superior = di[Colunas.PRAZO.value].drop_duplicates().loc[di[Colunas.PRAZO.value] > du].min()
+        fator_multiplicador = (du - vertice_inferior)/(vertice_superior - vertice_inferior)
+
+        interpol_df = (
+            di.loc[di[Colunas.PRAZO.value].isin([vertice_inferior, vertice_superior])]
+              .dropna()
+              .pivot(index=Colunas.DATA.value, columns=Colunas.PRAZO.value, values=Colunas.VALOR.value)
+        )
+        interpol_df[du] = interpol_df[vertice_inferior] + \
+                          fator_multiplicador * (interpol_df[vertice_superior] - interpol_df[vertice_inferior])
+        
+        return (
+            interpol_df.reset_index()
+                       .melt(
+                           id_vars=Colunas.DATA.value, 
+                           value_vars=du, 
+                           var_name=Colunas.PRAZO.value,
+                           value_name=Colunas.VALOR.value
+                       )
+        )
