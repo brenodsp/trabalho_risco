@@ -59,11 +59,20 @@ class MatrizFatoresRisco:
             values=Colunas.VALOR.value
         ).dropna()
     
-    def cov(self) -> DataFrame:
-        return self.fatores_risco_carteira()
+    def matriz_cov_ewma(self, lambda_: float = 0.94):
+        # Inicializa com a covariância amostral
+        retornos = self.fatores_risco_carteira()
+        cov_ewma = retornos.cov()
+        for i in range(1, len(retornos)):
+            r_t = retornos.iloc[i].values.reshape(-1, 1)
+            cov_ewma = lambda_ * cov_ewma + (1 - lambda_) * (r_t @ r_t.T)
+        return DataFrame(cov_ewma, index=retornos.columns, columns=retornos.columns)
 
-    def cov_ewma(self) -> DataFrame:
-        pass
+        # Calcular covariância com ajuste EWMA
+        def aplicar_ewma(linha: Series) -> Series:
+            pass
+
+        cov_ewma = cov.apply(lambda linha: aplicar_ewma(linha), axis=1)
 
     def cov_garch(self) -> DataFrame:
         pass
@@ -120,8 +129,12 @@ class CalculosFatoresRisco:
         return df
 
     @classmethod
-    def ewma(cls, valor_calculado: Series, valor_fator_risco: Series, lambda_: float = 0.94) -> Series:
+    def ewma_serie(cls, valor_calculado: Series, valor_fator_risco: Series, lambda_: float = 0.94) -> Series:
         return lambda_ * valor_calculado.shift(1) + (1 - lambda_) * valor_fator_risco
+    
+    @classmethod
+    def ewma_unitario(cls, valor_calculado: float, valor_fator_risco: float, lambda_: float = 0.94) -> float:
+        return lambda_ * valor_calculado + (1 - lambda_) * valor_fator_risco
 
     @classmethod
     def variancia_ewma(cls, df: DataFrame, agrupar_por: Colunas, lambda_: float = 0.94) -> DataFrame:
@@ -134,7 +147,7 @@ class CalculosFatoresRisco:
         # Efetuar cálculo de variância seguindo modelo EWMA
         df[Colunas.VARIANCIA_EWMA.value] = df.sort_values(Colunas.DATA.value)\
                                              .groupby(agrupar_por.value)\
-                                             .apply(lambda group: cls.ewma(
+                                             .apply(lambda group: cls.ewma_serie(
                                                  group[Colunas.VARIANCIA_EWMA.value], group[Colunas.VARIACAO.value] ** 2, lambda_
                                              ))\
                                              .reset_index()\
