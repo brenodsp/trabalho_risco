@@ -64,6 +64,21 @@ class Opcoes(Enum):
     OPCAO_13 = "Opção 13"
     OPCAO_14 = "Opção 14"
 
+class ProdutosOpcoes(Enum):
+    ABEV3 = "AMBV3"
+    IBOVE = "IBOV"
+    O_B3SA3 = "B3SA3"
+    O_BBDC4 = "BBDC4"
+    O_LREN3 = "LREN3"
+    O_PETR4 = "PETR4"
+    O_VALE3 = "VALE3"
+
+def definir_produto_opcao(produto: str) -> ProdutosOpcoes:
+    resultado = [n for n in ProdutosOpcoes._member_names_ if produto in n]
+    assert len(resultado) != 0, "Produto não encontrado."
+    assert len(resultado) == 1, "Produto ambíguo."
+    return resultado[0]
+
 class Titulos(Enum):
     TITULO_1 = "Título 1"
     TITULO_2 = "Título 2"
