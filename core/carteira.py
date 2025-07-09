@@ -2,7 +2,8 @@ from datetime import date
 from typing import Optional, Union
 
 from inputs.data_handler import InputsDataHandler
-from utils.enums import AcoesBr, AcoesUs, Opcoes, Titulos, Futuros, TipoFuturo, FatoresRisco, Localidade, definir_tipo_futuro
+from utils.enums import AcoesBr, AcoesUs, Opcoes, Titulos, Futuros, TipoFuturo, FatoresRisco, Localidade, \
+                        definir_tipo_futuro, definir_produto_opcao
 
 
 class Posicao:
@@ -19,24 +20,28 @@ class Posicao:
     def gerar_informacao_adicional(self, inputs_data_handler: Optional[InputsDataHandler]) -> None:
         # Forçar necessidade de prover inputs para certos ativos
         assert (
-            ((isinstance(self.ativo, Futuros) or isinstance(self.ativo, Titulos)) and inputs_data_handler) or
-            not (isinstance(self.ativo, Futuros) or isinstance(self.ativo, Titulos))
+            ((isinstance(self.ativo, Futuros) or isinstance(self.ativo, Titulos) or isinstance(self.ativo, Opcoes)) and inputs_data_handler) or
+            not (isinstance(self.ativo, Futuros) or isinstance(self.ativo, Titulos) or isinstance(self.ativo, Opcoes))
         ), f"Informações adicionais são necessárias para o tipo de ativo: {self.ativo.name}, mas inputs não foram fornecidos."
         
         # Extrair informações adicionais
         if isinstance(self.ativo, Futuros):
             df = inputs_data_handler.futuros()
             tipo_futuro = df[df["id"] == self.ativo.value]["tipo"].values[0]
-            self.tipo_futuro = definir_tipo_futuro(tipo_futuro)
+            self.produto = definir_tipo_futuro(tipo_futuro)
         elif isinstance(self.ativo, Titulos):
             df = inputs_data_handler.titulos()
-            self.tipo_titulo = df[df["id"] == self.ativo.value]["tipo"].values[0]
+            self.produto = df[df["id"] == self.ativo.value]["tipo"].values[0]
+        elif isinstance(self.ativo, Opcoes):
+            df = inputs_data_handler.opcoes()
+            produto = df[df["id"] == self.ativo.value]["underlying"].values[0]
+            self.produto = definir_produto_opcao(produto)
 
     @property
     def localidade(self) -> Localidade:
         if (not isinstance(self.ativo, AcoesUs)) and (not isinstance(self.ativo, Titulos)):
             return Localidade.BR
-        elif isinstance(self.ativo, Titulos) and "Note" not in self.tipo_titulo:
+        elif isinstance(self.ativo, Titulos) and "Note" not in self.produto:
             return Localidade.BR
         else:
             return Localidade.US
@@ -51,11 +56,11 @@ class Posicao:
         elif isinstance(self.ativo, Titulos):
             fatores_risco = FatoresRisco.JUROS,
         elif isinstance(self.ativo, Futuros):
-            if self.tipo_futuro == TipoFuturo.CAMBIO:
+            if self.produto in [TipoFuturo.EURUSD, TipoFuturo.USDBRL, TipoFuturo.USDCAD, TipoFuturo.USDJPY, TipoFuturo.USDMXN]:
                 fatores_risco = FatoresRisco.CAMBIO,
-            elif self.tipo_futuro == TipoFuturo.DI:
+            elif self.produto == TipoFuturo.DI:
                 fatores_risco = FatoresRisco.JUROS,
-            elif self.tipo_futuro == TipoFuturo.INDICE:
+            elif self.produto == TipoFuturo.IBOV:
                 fatores_risco = FatoresRisco.ACAO,
             else:
                 raise ValueError("Fator de risco desconhecido para o respectivo ativo.")    
@@ -72,7 +77,7 @@ class Carteira:
         self.POSICAO_1 = Posicao(AcoesBr.EMBRAER, 1500)
         self.POSICAO_2 = Posicao(AcoesBr.CASAS_BAHIA, 24500)
         self.POSICAO_3 = Posicao(AcoesUs.FORD_MOTORS, 1700)
-        self.POSICAO_4 = Posicao(Opcoes.OPCAO_9, 1.5)
+        self.POSICAO_4 = Posicao(Opcoes.OPCAO_9, 1.5, inputs_data_handler)
         self.POSICAO_5 = Posicao(Futuros.FUTURO_15, 0.6, inputs_data_handler)
         self.POSICAO_6 = Posicao(Futuros.FUTURO_9, 0.2, inputs_data_handler)
         self.POSICAO_7 = Posicao(Futuros.FUTURO_25, 1700, inputs_data_handler)
