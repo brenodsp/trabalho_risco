@@ -65,7 +65,7 @@ class Posicao:
 
     @property
     def fatores_risco(self) -> tuple[FatoresRisco]:
-        adicional_cambio = (FatoresRisco.CAMBIO,) if self.localidade == Localidade.US else ()
+        adicional_cambio = (FatoresRisco.CAMBIO_USDBRL,) if self.localidade == Localidade.US else ()
         if isinstance(self.ativo, Union[AcoesBr, AcoesUs]):
             fatores_risco = FatoresRisco.ACAO,
         elif isinstance(self.ativo, Opcoes):
@@ -73,8 +73,10 @@ class Posicao:
         elif isinstance(self.ativo, Titulos):
             fatores_risco = FatoresRisco.JUROS,
         elif isinstance(self.ativo, Futuros):
-            if self.produto in [TipoFuturo.EURUSD, TipoFuturo.USDBRL, TipoFuturo.USDCAD, TipoFuturo.USDJPY, TipoFuturo.USDMXN]:
-                fatores_risco = FatoresRisco.CAMBIO,
+            if self.produto == TipoFuturo.U:
+                fatores_risco = FatoresRisco.CAMBIO_USDBRL,
+            if self.produto in [TipoFuturo.EURUSD, TipoFuturo.USDCAD, TipoFuturo.USDJPY, TipoFuturo.USDMXN]:
+                fatores_risco = FatoresRisco.CAMBIO_USDOUTROS, FatoresRisco.CAMBIO_USDBRL,
             elif self.produto == TipoFuturo.DI:
                 fatores_risco = FatoresRisco.JUROS,
             elif self.produto == TipoFuturo.IBOV:

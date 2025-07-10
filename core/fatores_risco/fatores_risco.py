@@ -8,7 +8,7 @@ from pandas import DataFrame, Series, concat
 from core.carteira import Carteira, Posicao
 from core.renda_fixa.renda_fixa import RendaFixa
 from inputs.data_handler import InputsDataHandler
-from utils.enums import Colunas, FatoresRisco, Localidade
+from utils.enums import Colunas, FatoresRisco, Localidade, TipoFuturo
 
 
 class MatrizFatoresRisco:
@@ -41,19 +41,16 @@ class MatrizFatoresRisco:
                 )
                 
                 # Definir filtro a ser utilizado sobre o dataframe de fatores de risco
+                nome_serie = nomear_vetor_fator_risco(fr, p)
                 if fr == FatoresRisco.ACAO:
                     filtro = p.ativo.value
-                    nome_serie = p.ativo.name
-                elif (fr == FatoresRisco.CAMBIO) and (len(p.fatores_risco) > 1):
-                    filtro = "USDBRL"
-                    nome_serie = "USDBRL"
+                elif (fr == FatoresRisco.CAMBIO_USDBRL) and (len(p.fatores_risco) > 1):
+                    filtro = TipoFuturo.USDBRL.name
                 elif fr == FatoresRisco.JUROS:
                     df = df.drop(Colunas.VALOR.value, axis=1)
                     filtro = None
-                    nome_serie = p.produto.name
                 else: 
                     filtro = p.produto.value.replace("/", "")
-                    nome_serie = p.produto.name
 
                 # Normalizar formato
                 df.columns = [Colunas.DATA.value, Colunas.ATIVO.value, Colunas.VALOR.value]
@@ -121,7 +118,7 @@ class CalculosFatoresRisco:
         coluna_valor: Colunas
     ) -> DataFrame:
         # Valores nominais
-        if fator_risco in [FatoresRisco.ACAO, FatoresRisco.CAMBIO, FatoresRisco.MERCADO]:
+        if fator_risco in [FatoresRisco.ACAO, FatoresRisco.CAMBIO_USDBRL, FatoresRisco.CAMBIO_USDOUTROS]:
             df[Colunas.VARIACAO.value] = df.sort_values(Colunas.DATA.value)\
                                            .groupby(agrupar_por.value)\
                                            [coluna_valor.value]\
@@ -225,7 +222,7 @@ class CalculosFatoresRisco:
                 posicao.taxa
             ).curva_juros()
             return cls.calcular_variacao(df, fator_risco, Colunas.PRAZO, Colunas.VALOR)
-        elif fator_risco == FatoresRisco.CAMBIO:
+        elif fator_risco == FatoresRisco.CAMBIO_USDBRL:
             df = inputs.fx()
             colunas = [
                 Colunas.DATA.value,
@@ -235,3 +232,11 @@ class CalculosFatoresRisco:
             return cls.calcular_variacao(df, fator_risco, Colunas.CAMBIO, Colunas.VALOR)[colunas]
         else:
             raise ValueError("Fator de risco inválido.")
+
+def nomear_vetor_fator_risco(fr: FatoresRisco, p: Posicao) -> str:
+    if fr == FatoresRisco.ACAO:
+        return p.ativo.name
+    elif (fr == FatoresRisco.CAMBIO_USDBRL) and (len(p.fatores_risco) > 1):
+        return TipoFuturo.USDBRL.name
+    else: 
+        return p.produto.name
