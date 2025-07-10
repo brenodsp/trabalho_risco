@@ -8,6 +8,8 @@ from utils.enums import Colunas, Localidade
 
 
 class RendaFixa:
+    VALOR_FACE = 1000
+
     def __init__(
             self, 
             data_referencia: date, 
@@ -127,24 +129,53 @@ class RendaFixa:
         if self.localidade == Localidade.BR:
             return None
         
-        # Pegar curva de juros
-        valor_face = 1000
-
         # TODO: condicionar lógica à localidade em caso de posterior aplicação da regra BR 
         dias_totais = (self.vencimento - self.data_referencia).days
 
         # ASSUMINDO PAGAMENTO DE CUPOM SEMESTRAL
-        valor_cupom = (valor_face * (self.cupom / 100)) / 2 # Cupom é valor anual, então divide-se por dois para encontrar o semestral
-        total_periodos = (dias_totais/180).__floor__() # Dividir por 180 dias para determinar o número de semestres
-        taxa = (self.taxa/100) / 2 # Dividir por 2 para transformar anual em semestral
+        valor_cupom, taxa, total_periodos = self._base_semestral(self.VALOR_FACE, self.cupom/100, self.taxa/100, dias_totais)
 
-        # Calcular VPL dos cupons
-        vpl_cupons = sum([valor_cupom / ((1 + taxa) ** t) for t in range(1, total_periodos + 1)])
+        # Calcular soma dos VPLs dos fluxos de caixa de cupons
+        vpl_cupons = sum([self._vpl(valor_cupom, taxa, t) for t in range(1, total_periodos + 1)])
 
         # Calcular VPL da curva
-        vpl_curva = valor_face / ((1 + taxa) ** total_periodos)
+        vpl_curva = self._vpl(self.VALOR_FACE, taxa, total_periodos)
 
         return vpl_cupons + vpl_curva
 
     def duration_modificada(self) -> float:
-        pass
+        return self._duration() / (1 + self.taxa/100)
+
+    def _duration(self) -> float:
+        if self.localidade == Localidade.BR:
+            return self.periodo / 252
+        elif self.localidade == Localidade.US:
+            # EMPREGANDO LÓGICA SEMESTRAL
+            dias_totais = (self.vencimento - self.data_referencia).days
+            valor_cupom, taxa, total_periodos = self._base_semestral(self.VALOR_FACE, self.cupom/100, self.taxa/100, dias_totais)
+
+            # Calcular VPL dos fluxos de caixa dos cupons
+            vpl_cupons = sum([self._vpl(valor_cupom, taxa, t) for t in range(1, total_periodos + 1)])
+
+            # Calcular VPL dos fluxos de caixa dos cupons ponderado pelo tempo
+            vpl_cupons_ponderado = sum([self._vpl(valor_cupom, taxa, t) * t for t in range(1, total_periodos + 1)])
+
+            return (vpl_cupons_ponderado / vpl_cupons) / 2 # Dividir por 2 para encontrar base anual
+
+    @staticmethod
+    def _vpl(valor_base: float, taxa: float, periodo: float) -> float:
+        assert (taxa > 0) and (taxa <= 1), "Taxa muito alta. Checar se valor inserido foi nominal ao invés de percentual."
+        return valor_base / ((1 + taxa) ** periodo)
+
+    @staticmethod
+    def _base_semestral(
+            valor_face: float,
+            cupom_anual: float,
+            taxa_anual: float,
+            dias_totais: float
+    ) -> tuple[float, float, float]:
+         valor_cupom_semestral = (valor_face * (cupom_anual/100))/2 # Cupom é valor anual, então divide-se por dois para encontrar o semestral
+         taxa_semestral = taxa_anual / 2 # Dividir por 2 para transformar anual em semestral
+         total_periodos = (dias_totais / 180).__floor__() # Dividir por 180 dias para determinar o número de semestres
+         return valor_cupom_semestral, taxa_semestral, total_periodos
+        
