@@ -1,15 +1,19 @@
+from datetime import date
+
 from pandas import DataFrame, concat
 
 from core.carteira import Posicao
 from core.fatores_risco.fatores_risco import nomear_vetor_fator_risco
+from core.renda_fixa.renda_fixa import RendaFixa
 from inputs.data_handler import InputsDataHandler
 from utils.enums import FatoresRisco, Opcoes, Localidade, Colunas, TipoFuturo, Futuros, AcoesUs, Titulos
 
 
 class Exposicao:
-    def __init__(self, posicao: Posicao, inputs: InputsDataHandler):
+    def __init__(self, posicao: Posicao, inputs: InputsDataHandler, data_referencia: date):
         self.posicao = posicao
         self.inputs = inputs
+        self.data_referencia = data_referencia
 
     def calcular_exposicao(self) -> DataFrame:
         exposicoes_fatores_risco = []
@@ -60,7 +64,6 @@ class Exposicao:
                     w_df = self._criar_df_exposicao(nomear_vetor_fator_risco(FatoresRisco.CAMBIO_USDBRL, self.posicao), w)
                     exposicoes_fatores_risco.append(w_df)
                     
-
             elif fr in [FatoresRisco.CAMBIO_USDBRL, FatoresRisco.CAMBIO_USDOUTROS]:
                 # Herdar exposição em caso de produtos americanos
                 if fr == FatoresRisco.CAMBIO_USDBRL and len(self.posicao.fatores_risco) > 1:
@@ -94,7 +97,39 @@ class Exposicao:
                     exposicoes_fatores_risco.append(w_df)
 
             elif fr == FatoresRisco.JUROS:
-                # TODO: implementar calculo de exposição para juros
+                # Instanciar calculadora de renda fixa
+                df_titulos = self.inputs.titulos()
+                cupom = float(df_titulos.loc[df_titulos[Colunas.ID.value] == self.posicao.ativo.value]["cupom"].values[0])
+                taxa = float(df_titulos.loc[df_titulos[Colunas.ID.value] == self.posicao.ativo.value]["taxa"].values[0])
+                rf = RendaFixa(
+                    self.data_referencia,
+                    self.posicao.vencimento,
+                    self.posicao.localidade,
+                    self.inputs,
+                    cupom,
+                    taxa
+                )
+
+                # Calcular PU e Duration Modificada
+                pu = rf.pu()
+                duration_modificada = rf.duration_modificada()
+
+                # Calcular exposição
+                df_cambio = self.inputs.fx()
+                cambio_dolar = (
+                    float(df_cambio.loc[
+                        (df_cambio[Colunas.CAMBIO.value] == TipoFuturo.USDBRL.name) &
+                        (df_cambio[Colunas.DATA.value] == df_cambio[Colunas.DATA.value].max())
+                    ][Colunas.VALOR.value].values[0])
+                    if self.posicao.localidade == Localidade.US
+                    else
+                    1.0 
+                )
+
+                w = self._exposicao_juros(self.posicao.quantidade, pu, duration_modificada, cambio_dolar)
+                w_df = self._criar_df_exposicao(nomear_vetor_fator_risco(fr, self.posicao), w)
+                exposicoes_fatores_risco.append(w_df)
+
                 # Utilizar exposição para o fator de risco de câmbio em caso de ação americana
                 if self.posicao.localidade == Localidade.US:
                     w_df = self._criar_df_exposicao(nomear_vetor_fator_risco(FatoresRisco.CAMBIO_USDBRL, self.posicao), w)
@@ -125,8 +160,8 @@ class Exposicao:
         return quantidade * ((preco_original / cambio_outros) * cambio_dolar)
     
     @staticmethod
-    def _exposicao_juros(quantidade: float, pu: float, duration_modificada: float) -> float:
-        return -quantidade * pu * duration_modificada
+    def _exposicao_juros(quantidade: float, pu: float, duration_modificada: float, cambio_dolar: float = 1.0) -> float:
+        return (quantidade * pu * duration_modificada) * cambio_dolar
     
     @staticmethod
     def _exposicao_futuros(quantidade: float, tamanho_contrato: float) -> float:

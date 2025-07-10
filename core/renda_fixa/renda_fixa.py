@@ -161,6 +161,8 @@ class RendaFixa:
             vpl_cupons_ponderado = sum([self._vpl(valor_cupom, taxa, t) * t for t in range(1, total_periodos + 1)])
 
             return (vpl_cupons_ponderado / vpl_cupons) / 2 # Dividir por 2 para encontrar base anual
+        else:
+            raise ValueError("Localidade inválida.")
 
     @staticmethod
     def _vpl(valor_base: float, taxa: float, periodo: float) -> float:
