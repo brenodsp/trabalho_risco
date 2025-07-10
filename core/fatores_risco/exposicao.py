@@ -3,7 +3,7 @@ from pandas import DataFrame, concat
 from core.carteira import Posicao
 from core.fatores_risco.fatores_risco import nomear_vetor_fator_risco
 from inputs.data_handler import InputsDataHandler
-from utils.enums import FatoresRisco, Opcoes, Localidade, Colunas, TipoFuturo, Futuros
+from utils.enums import FatoresRisco, Opcoes, Localidade, Colunas, TipoFuturo, Futuros, AcoesUs
 
 
 class Exposicao:
@@ -55,9 +55,24 @@ class Exposicao:
                 w_df = self._criar_df_exposicao(nomear_vetor_fator_risco(fr, self.posicao), w)
                 exposicoes_fatores_risco.append(w_df)
 
+                # Utilizar exposição para o fator de risco de câmbio em caso de ação americana
+                if self.posicao.localidade == Localidade.US:
+                    w_df = self._criar_df_exposicao(nomear_vetor_fator_risco(FatoresRisco.CAMBIO_USDBRL, self.posicao), w)
+                    exposicoes_fatores_risco.append(w_df)
+                    
+
             elif fr in [FatoresRisco.CAMBIO_USDBRL, FatoresRisco.CAMBIO_USDOUTROS]:
-                # TODO: implementar calculo de exposição para cambio
-                pass
+                # Herdar exposição em caso de ação americana
+                if isinstance(self.posicao.ativo, AcoesUs):
+                   continue
+
+                df_cambio = self.inputs.fx()
+                filtro = TipoFuturo.USDBRL.name if fr == FatoresRisco.CAMBIO_USDBRL else self.posicao.produto.name
+                ultimo_cambio = float(df_cambio.loc[
+                    (df_cambio[Colunas.CAMBIO.value] == filtro) &
+                    (df_cambio[Colunas.DATA.value] == df_cambio[Colunas.DATA.value].max())
+                ][Colunas.VALOR.value].values[0])
+
             elif fr == FatoresRisco.JUROS:
                 # TODO: implementar calculo de exposição para juros
                 pass
