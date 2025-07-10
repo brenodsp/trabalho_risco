@@ -66,7 +66,7 @@ class RendaFixa:
     
     def _definir_vertice_treasury(self) -> str:
         # Calcular diferença, em anos, entre a data de referência e o vencimento
-        delta_anos = (self.vencimento - self.data_referencia).days / 360
+        delta_anos = (self.vencimento - self.data_referencia).days / 365
 
         # Carregar produtos Treasury
         treasuries = self.inputs_data_handler.treasury()[Colunas.PRAZO.value].drop_duplicates().to_list()
@@ -121,3 +121,30 @@ class RendaFixa:
                            value_name=Colunas.VALOR.value
                        )
         )
+
+    def pu(self) -> float:
+        # TODO: talvez implementar depois método para juros BR
+        if self.localidade == Localidade.BR:
+            return None
+        
+        # Pegar curva de juros
+        valor_face = 1000
+
+        # TODO: condicionar lógica à localidade em caso de posterior aplicação da regra BR 
+        dias_totais = (self.vencimento - self.data_referencia).days
+
+        # ASSUMINDO PAGAMENTO DE CUPOM SEMESTRAL
+        valor_cupom = (valor_face * (self.cupom / 100)) / 2 # Cupom é valor anual, então divide-se por dois para encontrar o semestral
+        total_periodos = (dias_totais/180).__floor__() # Dividir por 180 dias para determinar o número de semestres
+        taxa = (self.taxa/100) / 2 # Dividir por 2 para transformar anual em semestral
+
+        # Calcular VPL dos cupons
+        vpl_cupons = sum([valor_cupom / ((1 + taxa) ** t) for t in range(1, total_periodos + 1)])
+
+        # Calcular VPL da curva
+        vpl_curva = valor_face / ((1 + taxa) ** total_periodos)
+
+        return vpl_cupons + vpl_curva
+
+    def duration_modificada(self) -> float:
+        pass
