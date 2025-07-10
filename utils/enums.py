@@ -5,6 +5,8 @@ class Colunas(Enum):
     CAMBIO = "cambio"
     DATA = "data"
     DELTA = "delta"
+    EXPOSICAO = "exposicao"
+    FATOR_RISCO = "fator_risco"
     ID = "id"
     PRAZO = "prazo"
     PRECO = "preco"
