@@ -24,7 +24,7 @@ class MatrizFatoresRisco:
 
     def fatores_risco_carteira(self) -> DataFrame:
         # Extrair posições
-        posicoes: list[Posicao] = [p for p in self.carteira.__dict__.values()]
+        posicoes: list[Posicao] = [p for p in self.carteira.__dict__.values() if isinstance(p, Posicao)]
 
         # Iterar posições para extrair dados sobre cada um dos fatores de risco
         lista_fatores_risco = []
