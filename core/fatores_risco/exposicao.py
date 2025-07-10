@@ -3,7 +3,7 @@ from pandas import DataFrame, concat
 from core.carteira import Posicao
 from core.fatores_risco.fatores_risco import nomear_vetor_fator_risco
 from inputs.data_handler import InputsDataHandler
-from utils.enums import FatoresRisco, Opcoes, Localidade, Colunas, TipoFuturo, Futuros, AcoesUs
+from utils.enums import FatoresRisco, Opcoes, Localidade, Colunas, TipoFuturo, Futuros, AcoesUs, Titulos
 
 
 class Exposicao:
@@ -62,8 +62,8 @@ class Exposicao:
                     
 
             elif fr in [FatoresRisco.CAMBIO_USDBRL, FatoresRisco.CAMBIO_USDOUTROS]:
-                # Herdar exposição em caso de ação americana
-                if isinstance(self.posicao.ativo, AcoesUs):
+                # Herdar exposição em caso de ação ou títulos americanos
+                if isinstance(self.posicao.ativo, AcoesUs) or isinstance(self.posicao.ativo, Titulos):
                    continue
 
                 df_cambio = self.inputs.fx()
@@ -75,6 +75,10 @@ class Exposicao:
 
             elif fr == FatoresRisco.JUROS:
                 # TODO: implementar calculo de exposição para juros
+                # Utilizar exposição para o fator de risco de câmbio em caso de ação americana
+                if self.posicao.localidade == Localidade.US:
+                    w_df = self._criar_df_exposicao(nomear_vetor_fator_risco(FatoresRisco.CAMBIO_USDBRL, self.posicao), w)
+                    exposicoes_fatores_risco.append(w_df)
                 pass
             else:
                 raise ValueError("Fator de risco desconhecido.")
