@@ -2,11 +2,32 @@ from datetime import date
 
 from pandas import DataFrame, concat
 
-from core.carteira import Posicao
+from core.carteira import Carteira, Posicao
 from core.fatores_risco.fatores_risco import nomear_vetor_fator_risco
 from core.renda_fixa.renda_fixa import RendaFixa
 from inputs.data_handler import InputsDataHandler
 from utils.enums import FatoresRisco, Opcoes, Localidade, Colunas, TipoFuturo, Futuros, AcoesUs, Titulos
+
+
+class ExposicaoCarteira:
+    def __init__(self, carteira: Carteira, inputs: InputsDataHandler):
+        self.carteira = carteira
+        self.inputs = inputs
+
+    def exposicao_carteira(self) -> DataFrame:
+        # Calcular exposição de cada posição da carteira
+        exposicoes = [
+            Exposicao(p, self.inputs, self.carteira.data_referencia).calcular_exposicao() 
+            for p in [p for p in self.carteira.__dict__.values() if isinstance(p, Posicao)]
+        ]
+
+        # Juntar exposições e formatar como vetor
+        return (
+            concat(exposicoes)
+            .groupby(Colunas.FATOR_RISCO.value)
+            .sum()
+            .T
+        )
 
 
 class Exposicao:
@@ -141,6 +162,7 @@ class Exposicao:
                     w_df = self._criar_df_exposicao(nomear_vetor_fator_risco(FatoresRisco.CAMBIO_USDBRL, self.posicao), w)
                     exposicoes_fatores_risco.append(w_df)
                 pass
+            
             else:
                 raise ValueError("Fator de risco desconhecido.")
             
