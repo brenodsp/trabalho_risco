@@ -90,9 +90,9 @@ class Posicao:
         
 
 class Carteira:
-    DATA_REFERENCIA = date(2025, 5, 26)
-
-    def __init__(self, posicoes: list[Posicao]):
+    def __init__(self, posicoes: list[Posicao], data_referencia: date):
+        self.data_referencia = data_referencia
+        
         for i, posicao in enumerate(posicoes, start=1):
             atributo = f"POSICAO_{i}"
             setattr(self, atributo, posicao)
