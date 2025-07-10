@@ -222,7 +222,7 @@ class CalculosFatoresRisco:
                 posicao.taxa
             ).curva_juros()
             return cls.calcular_variacao(df, fator_risco, Colunas.PRAZO, Colunas.VALOR)
-        elif fator_risco == FatoresRisco.CAMBIO_USDBRL:
+        elif fator_risco in [FatoresRisco.CAMBIO_USDBRL, FatoresRisco.CAMBIO_USDOUTROS]:
             df = inputs.fx()
             colunas = [
                 Colunas.DATA.value,
