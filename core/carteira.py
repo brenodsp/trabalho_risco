@@ -73,7 +73,7 @@ class Posicao:
         elif isinstance(self.ativo, Titulos):
             fatores_risco = FatoresRisco.JUROS,
         elif isinstance(self.ativo, Futuros):
-            if self.produto == TipoFuturo.U:
+            if self.produto == TipoFuturo.USDBRL:
                 fatores_risco = FatoresRisco.CAMBIO_USDBRL,
             if self.produto in [TipoFuturo.EURUSD, TipoFuturo.USDCAD, TipoFuturo.USDJPY, TipoFuturo.USDMXN]:
                 fatores_risco = FatoresRisco.CAMBIO_USDOUTROS, FatoresRisco.CAMBIO_USDBRL,
