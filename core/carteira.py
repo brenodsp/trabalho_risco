@@ -90,12 +90,7 @@ class Posicao:
 class Carteira:
     DATA_REFERENCIA = date(2025, 5, 26)
 
-    def __init__(self, inputs_data_handler: InputsDataHandler):
-        self.POSICAO_1 = Posicao(AcoesBr.EMBRAER, 1500, inputs_data_handler)
-        self.POSICAO_2 = Posicao(AcoesBr.CASAS_BAHIA, 24500, inputs_data_handler)
-        self.POSICAO_3 = Posicao(AcoesUs.FORD_MOTORS, 1700, inputs_data_handler)
-        self.POSICAO_4 = Posicao(Opcoes.OPCAO_9, 1.5, inputs_data_handler)
-        self.POSICAO_5 = Posicao(Futuros.FUTURO_15, 0.6, inputs_data_handler)
-        self.POSICAO_6 = Posicao(Futuros.FUTURO_9, 0.2, inputs_data_handler)
-        self.POSICAO_7 = Posicao(Futuros.FUTURO_25, 1700, inputs_data_handler)
-        self.POSICAO_8 = Posicao(Titulos.TITULO_9, 250000, inputs_data_handler)
+    def __init__(self, posicoes: list[Posicao]):
+        for i, posicao in enumerate(posicoes, start=1):
+            atributo = f"POSICAO_{i}"
+            setattr(self, atributo, posicao)
