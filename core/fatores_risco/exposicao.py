@@ -62,16 +62,36 @@ class Exposicao:
                     
 
             elif fr in [FatoresRisco.CAMBIO_USDBRL, FatoresRisco.CAMBIO_USDOUTROS]:
-                # Herdar exposição em caso de ação ou títulos americanos
-                if isinstance(self.posicao.ativo, AcoesUs) or isinstance(self.posicao.ativo, Titulos):
+                # Herdar exposição em caso de produtos americanos
+                if fr == FatoresRisco.CAMBIO_USDBRL and len(self.posicao.fatores_risco) > 1:
                    continue
 
                 df_cambio = self.inputs.fx()
+                
                 filtro = TipoFuturo.USDBRL.name if fr == FatoresRisco.CAMBIO_USDBRL else self.posicao.produto.name
-                ultimo_cambio = float(df_cambio.loc[
-                    (df_cambio[Colunas.CAMBIO.value] == filtro) &
+                cambio_dolar = float(df_cambio.loc[
+                    (df_cambio[Colunas.CAMBIO.value] == TipoFuturo.USDBRL.name) &
                     (df_cambio[Colunas.DATA.value] == df_cambio[Colunas.DATA.value].max())
                 ][Colunas.VALOR.value].values[0])
+                
+                ultimo_cambio = (
+                    float(df_cambio.loc[
+                        (df_cambio[Colunas.CAMBIO.value] == filtro) &
+                        (df_cambio[Colunas.DATA.value] == df_cambio[Colunas.DATA.value].max())
+                    ][Colunas.VALOR.value].values[0])
+                    if fr == FatoresRisco.CAMBIO_USDOUTROS
+                    else
+                    1.0 
+                )
+
+                w = float(self._exposicao_cambio(self.posicao.quantidade, contratos, cambio_dolar, ultimo_cambio))
+                w_df = self._criar_df_exposicao(nomear_vetor_fator_risco(fr, self.posicao), w)
+                exposicoes_fatores_risco.append(w_df)
+
+                # Utilizar exposição para o fator de risco de câmbio em caso de ação americana
+                if fr == FatoresRisco.CAMBIO_USDOUTROS:
+                    w_df = self._criar_df_exposicao(nomear_vetor_fator_risco(FatoresRisco.CAMBIO_USDBRL, self.posicao), w)
+                    exposicoes_fatores_risco.append(w_df)
 
             elif fr == FatoresRisco.JUROS:
                 # TODO: implementar calculo de exposição para juros
@@ -101,8 +121,8 @@ class Exposicao:
         return quantidade * vega
 
     @staticmethod
-    def _exposicao_cambio(quantidade: float, preco_original: float, cambio: float, cambio_dolar: float = 1.0) -> float:
-        return quantidade * (preco_original * cambio * cambio_dolar)
+    def _exposicao_cambio(quantidade: float, preco_original: float, cambio_dolar: float, cambio_outros: float = 1.0) -> float:
+        return quantidade * ((preco_original / cambio_outros) * cambio_dolar)
     
     @staticmethod
     def _exposicao_juros(quantidade: float, pu: float, duration_modificada: float) -> float:
