@@ -3,7 +3,7 @@ from pandas import DataFrame, concat
 from core.carteira import Posicao
 from core.fatores_risco.fatores_risco import nomear_vetor_fator_risco
 from inputs.data_handler import InputsDataHandler
-from utils.enums import FatoresRisco, Opcoes, Localidade, Colunas, TipoFuturo
+from utils.enums import FatoresRisco, Opcoes, Localidade, Colunas, TipoFuturo, Futuros
 
 
 class Exposicao:
@@ -17,10 +17,23 @@ class Exposicao:
             # TODO: implementar calculo de exposição para opcoes
             pass
 
+        # Calcular exposição para futuros
+        if isinstance(self.posicao.ativo, Futuros):
+            df_futuros = self.inputs.futuros()
+            contratos = float(df_futuros.loc[df_futuros[Colunas.ID.value] == self.posicao.ativo.value]["tamanho_contrato"].values[0])
+            if not ((FatoresRisco.CAMBIO_USDBRL in self.posicao.fatores_risco) or (FatoresRisco.CAMBIO_USDOUTROS in self.posicao.fatores_risco)):
+                w = self._exposicao_futuros(self.posicao.quantidade, contratos)
+
         for fr in self.posicao.fatores_risco:
             if fr == FatoresRisco.ACAO:
+                # Considerar exposição já calculada para futuros
+                if isinstance(self.posicao.ativo, Futuros):
+                    w_df = self._criar_df_exposicao(nomear_vetor_fator_risco(fr, self.posicao), w)
+                    exposicoes_fatores_risco.append(w_df)
+                    continue
+
                 # Fazer distinção entre ações brasileiras e americanas
-                if self.posicao.localidade == Localidade.BR:
+                elif self.posicao.localidade == Localidade.BR:
                     precos = self.inputs.acoes_br()
                     cambio = 1.0
                 elif self.posicao.localidade == Localidade.US:
@@ -75,3 +88,7 @@ class Exposicao:
     @staticmethod
     def _exposicao_juros(quantidade: float, pu: float, duration_modificada: float) -> float:
         return -quantidade * pu * duration_modificada
+    
+    @staticmethod
+    def _exposicao_futuros(quantidade: float, tamanho_contrato: float) -> float:
+        return quantidade * tamanho_contrato
