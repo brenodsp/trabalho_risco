@@ -97,6 +97,12 @@ class Exposicao:
                     exposicoes_fatores_risco.append(w_df)
 
             elif fr == FatoresRisco.JUROS:
+                # Se for proveniente de futuros, apenas utilizar exposição calculada para esse tipo de ativo
+                if isinstance(self.posicao.ativo, Futuros):
+                    w_df = self._criar_df_exposicao(nomear_vetor_fator_risco(fr, self.posicao), w)
+                    exposicoes_fatores_risco.append(w_df)
+                    continue
+
                 # Instanciar calculadora de renda fixa
                 df_titulos = self.inputs.titulos()
                 cupom = float(df_titulos.loc[df_titulos[Colunas.ID.value] == self.posicao.ativo.value]["cupom"].values[0])
