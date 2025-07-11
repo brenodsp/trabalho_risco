@@ -8,7 +8,7 @@ from pandas import DataFrame, Series, concat
 from core.carteira import Carteira, Posicao
 from core.renda_fixa.renda_fixa import RendaFixa
 from inputs.data_handler import InputsDataHandler
-from utils.enums import Colunas, FatoresRisco, Localidade, TipoFuturo, Futuros
+from utils.enums import Colunas, FatoresRisco, Localidade, TipoFuturo, Futuros, Opcoes
 
 
 class MatrizFatoresRisco:
@@ -234,8 +234,12 @@ class CalculosFatoresRisco:
             raise ValueError("Fator de risco inválido.")
 
 def nomear_vetor_fator_risco(fr: FatoresRisco, p: Posicao) -> str:
-    if (fr == FatoresRisco.ACAO) and not isinstance(p.ativo, Futuros):
+    if (fr == FatoresRisco.ACAO) and isinstance(p.ativo, Opcoes):
+        return p.produto.name
+    elif (fr == FatoresRisco.ACAO) and not isinstance(p.ativo, Futuros):
         return p.ativo.name
+    elif fr == FatoresRisco.VOLATILIDADE:
+        return f"{p.produto.name}_VOL"
     elif (fr == FatoresRisco.CAMBIO_USDBRL) and (len(p.fatores_risco) > 1):
         return TipoFuturo.USDBRL.name
     else: 
