@@ -1,10 +1,12 @@
 from datetime import date, datetime
 
 from core.carteira import Carteira, Posicao
+from core.var.var import VarParametrico
 from inputs.data_handler import InputsDataHandler
-from core.fatores_risco.fatores_risco import CalculosFatoresRisco, MatrizFatoresRisco
+from core.fatores_risco.exposicao import ExposicaoCarteira
+from core.fatores_risco.fatores_risco import MatrizFatoresRisco
 from core.renda_fixa.renda_fixa import RendaFixa
-from utils.enums import IntervaloConfianca, FatoresRisco, Colunas, Localidade, AcoesBr, AcoesUs, Opcoes, Futuros, Titulos
+from utils.enums import IntervaloConfianca, AcoesBr, AcoesUs, Opcoes, Futuros, Titulos
 
 # Pegar inputs
 data_handler = InputsDataHandler()
@@ -21,22 +23,48 @@ posicoes_canonicas = [
     Posicao(Titulos.TITULO_9, 250000, data_handler)
 ]
 
-carteira_canonica = Carteira(posicoes_canonicas)
+carteira_canonica = Carteira(posicoes_canonicas, date(2025, 5, 26))
 
 # Questões
 ## a
 print(f"[{datetime.now()}] Solucionando questão a)")
 a = {
-    p: [f.name for f in carteira.__getattribute__(p).fatores_risco]
-    for p in carteira.__dict__
+    p: [f.name for f in carteira_canonica.__getattribute__(p).fatores_risco]
+    for p in carteira_canonica.__dict__
+    if "POSICAO" in p
 }
 
 ## b
-fatores_risco = MatrizFatoresRisco(carteira, data_handler)
+fatores_risco = MatrizFatoresRisco(carteira_canonica, data_handler)
 
 print(f"[{datetime.now()}] Solucionando questão b)")
 b = fatores_risco.matriz_cov_ewma()
 
 ## c
-print(f"[{datetime.now()}] Solucionando questão b)")
+print(f"[{datetime.now()}] Solucionando questão c)")
 c = fatores_risco.matriz_cov_garch()
+
+## d
+print(f"[{datetime.now()}] Solucionando questão d)")
+calculadora_var_parametrico = VarParametrico(
+    ExposicaoCarteira(carteira_canonica, data_handler),
+    MatrizFatoresRisco(carteira_canonica, data_handler),
+    IntervaloConfianca.P99
+)
+
+d = {
+    p: calculadora_var_parametrico.var_parametrico_posicao(
+        carteira_canonica.__getattribute__(p), 
+        carteira_canonica.data_referencia,
+        data_handler
+        )
+    for p in carteira_canonica.__dict__
+    if "POSICAO" in p
+}
+
+## e
+print(f"[{datetime.now()}] Solucionando questão e)")
+e = calculadora_var_parametrico.var_parametrico_carteira()
+
+## h
+print(f"[{datetime.now()}] Solucionando questão h)")
