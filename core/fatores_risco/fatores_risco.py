@@ -37,7 +37,7 @@ class MatrizFatoresRisco:
                         self.inputs,
                         p,
                         self.lambda_,
-                        self.carteira.DATA_REFERENCIA
+                        self.carteira.data_referencia
                 )
                 
                 # Definir filtro a ser utilizado sobre o dataframe de fatores de risco
