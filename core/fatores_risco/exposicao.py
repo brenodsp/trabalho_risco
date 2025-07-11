@@ -1,8 +1,9 @@
 from datetime import date
 
-from pandas import DataFrame, concat
+from pandas import DataFrame, concat, to_datetime
 
 from core.carteira import Carteira, Posicao
+from core.fatores_risco.black_scholes import bs_delta, bs_implied_vol, bs_price, bs_vega
 from core.fatores_risco.fatores_risco import nomear_vetor_fator_risco
 from core.renda_fixa.renda_fixa import RendaFixa
 from inputs.data_handler import InputsDataHandler
@@ -34,13 +35,43 @@ class Exposicao:
     def __init__(self, posicao: Posicao, inputs: InputsDataHandler, data_referencia: date):
         self.posicao = posicao
         self.inputs = inputs
-        self.data_referencia = data_referencia
+        self.data_referencia = to_datetime(data_referencia)
 
     def calcular_exposicao(self) -> DataFrame:
         exposicoes_fatores_risco = []
         if isinstance(self.posicao.ativo, Opcoes):
-            # TODO: implementar calculo de exposição para opcoes
-            pass
+            # Recuperar informações de opções
+            opcoes = self.inputs.opcoes()
+            opcoes = opcoes.loc[opcoes[Colunas.ID.value] == self.posicao.ativo.value]
+
+            # Definir características da opção
+            S = float(opcoes["strike"].values[0])
+            K = float(opcoes["nocional"].values[0])
+            T = RendaFixa.calcular_du(self.data_referencia, to_datetime(opcoes["vencimento"].values[0]), self.inputs)/252
+            preco_opcao = float(opcoes["preco"].values[0])
+            tipo = 1 if opcoes["tipo"].values[0] == "call" else -1
+
+            # Calcular propriedades Black-Scholes
+            vol_implicita = float(bs_implied_vol(S, K, T, 0, 0, preco_opcao, tipo, 1))
+            delta = float(bs_delta(S, K, T, 0, 0, vol_implicita, tipo, 1))
+            vega = float(bs_vega(S, K, T, 0, 0, vol_implicita, tipo, 1))
+
+            # Determinar exposições por parte do efeito do preço da ação e da volatilidade
+            w1_s = self._exposicao_acao(self.posicao.quantidade, S, delta)
+            df_w1_s = self._criar_df_exposicao(
+                nomear_vetor_fator_risco(FatoresRisco.ACAO, self.posicao),
+                w1_s
+            ) 
+            exposicoes_fatores_risco.append(df_w1_s)
+
+            w2_vol = self._exposicao_volatilidade(self.posicao.quantidade, vega)
+            df_w2_vol = self._criar_df_exposicao(
+                nomear_vetor_fator_risco(FatoresRisco.VOLATILIDADE, self.posicao),
+                w2_vol
+            ) 
+            exposicoes_fatores_risco.append(df_w2_vol)
+
+            return concat(exposicoes_fatores_risco)
 
         # Calcular exposição para futuros
         if isinstance(self.posicao.ativo, Futuros):
