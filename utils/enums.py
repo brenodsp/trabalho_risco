@@ -1,5 +1,7 @@
 from enum import Enum, auto
 
+from scipy.stats import norm
+
 class Colunas(Enum):
     ATIVO = "ativo"
     CAMBIO = "cambio"
@@ -150,9 +152,9 @@ def definir_tipo_futuro(tipo: str) -> TipoFuturo:
         raise ValueError("Produto não encontrado.")
 
 class IntervaloConfianca(Enum):
-    P90 = 1.2816
-    P95 = 1.6449
-    P99 = 2.3263
+    P90 = float(norm.ppf(0.9))
+    P95 = float(norm.ppf(0.95))
+    P99 = float(norm.ppf(0.99))
 
 class FatoresRisco(Enum):
     ACAO = auto()
