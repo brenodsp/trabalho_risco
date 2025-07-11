@@ -43,3 +43,47 @@ class VarParametrico:
     @staticmethod
     def _calculo_var_matricial(vetor_exposicao: array, matriz_retorno: array, intervalo_confianca: float) -> float:
         return sqrt((vetor_exposicao @ matriz_retorno @ vetor_exposicao.T) * (intervalo_confianca ** 2))
+
+
+class VarHistorico:
+    def __init__(
+            self,
+            carteira: Carteira,
+            retornos: MatrizFatoresRisco, 
+            inputs: InputsDataHandler
+    ):
+        self.carteira = carteira
+        self.retornos = retornos
+        self.inputs = inputs
+
+    def _gerar_cenarios(self) -> DataFrame:
+        retornos = self.retornos.fatores_risco_carteira()
+        posicoes = [p for p in self.carteira.__dict__.values() if isinstance(p, Posicao)]
+        
+        for posicao in posicoes:
+            # Filtrar retornos pertinentes à posição avaliada
+            fatores_risco = [
+                nomear_vetor_fator_risco(fr, posicao)
+                for fr in posicao.fatores_risco
+            ]
+            retornos_posicao = retornos.loc[:, fatores_risco]
+
+            # Pegar valores de referência para a geração de cenários
+            # TODO: criar dataframes para cada tipo de ativo
+            # TODO: normalizar dataframes em um só formato contendo o P&L de cada fator de risco
+
+    def var_historico_carteira(self, n_cenarios: int) -> float:
+        # TODO: LEMBRANDO QUE O VAR DEVE SER UM VALOR ABSOLUTO
+        # TODO: implementar regra de VaR histórico da carteira
+        cenarios_pnl = self._gerar_cenarios()
+        pass
+
+    def var_historico_posição(self, posicao: Posicao, n_cenarios: int) -> float:
+        # TODO: implementar regra de VaR histórico da posição
+        self._gerar_cenarios()
+        pass
+
+    def estresse_carteira(self, n_cenarios: int) -> float:
+        # TODO: implementar regra de estresse da carteira (pior cenário)
+        cenarios_pnl = self._gerar_cenarios()
+        pass

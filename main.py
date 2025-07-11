@@ -1,7 +1,7 @@
 from datetime import date, datetime
 
 from core.carteira import Carteira, Posicao
-from core.var.var import VarParametrico
+from core.var.var import VarParametrico, VarHistorico
 from inputs.data_handler import InputsDataHandler
 from core.fatores_risco.exposicao import ExposicaoCarteira
 from core.fatores_risco.fatores_risco import MatrizFatoresRisco
@@ -24,6 +24,12 @@ posicoes_canonicas = [
 ]
 
 carteira_canonica = Carteira(posicoes_canonicas, date(2025, 5, 26))
+teste = VarHistorico(
+    carteira_canonica,
+    MatrizFatoresRisco(carteira_canonica, data_handler),
+    data_handler
+)._gerar_cenarios()
+
 
 # Questões
 ## a
@@ -48,7 +54,7 @@ c = fatores_risco.matriz_cov_garch()
 print(f"[{datetime.now()}] Solucionando questão d)")
 calculadora_var_parametrico = VarParametrico(
     ExposicaoCarteira(carteira_canonica, data_handler),
-    MatrizFatoresRisco(carteira_canonica, data_handler),
+    fatores_risco,
     IntervaloConfianca.P99
 )
 
@@ -67,4 +73,11 @@ print(f"[{datetime.now()}] Solucionando questão e)")
 e = calculadora_var_parametrico.var_parametrico_carteira()
 
 ## h
-print(f"[{datetime.now()}] Solucionando questão h)")
+h = {
+    posicao: f"{round(d[posicao]/e, 6)}%"
+    for posicao in d
+}
+
+## i
+print(f"[{datetime.now()}] Solucionando questão i)")
+i = 0
