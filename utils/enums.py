@@ -5,6 +5,8 @@ class Colunas(Enum):
     CAMBIO = "cambio"
     DATA = "data"
     DELTA = "delta"
+    EXPOSICAO = "exposicao"
+    FATOR_RISCO = "fator_risco"
     ID = "id"
     PRAZO = "prazo"
     PRECO = "preco"
@@ -154,9 +156,9 @@ class IntervaloConfianca(Enum):
 
 class FatoresRisco(Enum):
     ACAO = auto()
-    CAMBIO = auto()
+    CAMBIO_USDBRL = auto()
+    CAMBIO_USDOUTROS = auto()
     JUROS = auto()
-    MERCADO = auto()
     VOLATILIDADE = auto()
 
 class Localidade(Enum):

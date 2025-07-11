@@ -1,13 +1,15 @@
 from datetime import date
 from typing import Optional, Union
 
-from pandas import DataFrame, date_range, to_datetime
+from pandas import DataFrame, Timestamp, date_range, to_datetime
 
 from inputs.data_handler import InputsDataHandler
 from utils.enums import Colunas, Localidade
 
 
 class RendaFixa:
+    VALOR_FACE = 1000
+
     def __init__(
             self, 
             data_referencia: date, 
@@ -28,24 +30,25 @@ class RendaFixa:
     def periodo(self) -> Union[int, str]:
         # Não fazer o cálculo de DU em caso de renda fixa americana
         if self.localidade == Localidade.BR:
-            return self._calcular_du()
+            return self.calcular_du(self.data_referencia, self.vencimento, self.inputs_data_handler)
         elif self.localidade == Localidade.US:
             return self._definir_vertice_treasury()
         else:
             raise ValueError("Localidade desconhecida.")
         
-    def _calcular_du(self) -> int:
+    @classmethod
+    def calcular_du(cls, data_referencia: Timestamp, vencimento: Timestamp, inputs: InputsDataHandler) -> int:
         # Carregar dados de feriados, filtrar datas e criar coluna de validação de feriado
-        feriados = self.inputs_data_handler.feriados()
+        feriados = inputs.feriados()
         feriados = feriados.loc[
-            (feriados[Colunas.DATA.value] >= self.data_referencia) & 
-            (feriados[Colunas.DATA.value] <= self.vencimento)
+            (feriados[Colunas.DATA.value] >= data_referencia) & 
+            (feriados[Colunas.DATA.value] <= vencimento)
         ]
 
         feriados = feriados.assign(eh_feriado=True)[[Colunas.DATA.value, "eh_feriado"]]
 
         # Criar DataFrame com horizonte completo de dias da data de referência até o vencimento
-        dias_corridos = date_range(self.data_referencia, self.vencimento)
+        dias_corridos = date_range(data_referencia, vencimento)
 
         # Juntar filtrar feriados e finais de semana
         feriados[Colunas.DATA.value] = to_datetime(feriados[Colunas.DATA.value])
@@ -66,7 +69,7 @@ class RendaFixa:
     
     def _definir_vertice_treasury(self) -> str:
         # Calcular diferença, em anos, entre a data de referência e o vencimento
-        delta_anos = (self.vencimento - self.data_referencia).days / 360
+        delta_anos = (self.vencimento - self.data_referencia).days / 365
 
         # Carregar produtos Treasury
         treasuries = self.inputs_data_handler.treasury()[Colunas.PRAZO.value].drop_duplicates().to_list()
@@ -121,3 +124,61 @@ class RendaFixa:
                            value_name=Colunas.VALOR.value
                        )
         )
+
+    def pu(self) -> float:
+        # TODO: talvez implementar depois método para juros BR
+        if self.localidade == Localidade.BR:
+            return None
+        
+        # TODO: condicionar lógica à localidade em caso de posterior aplicação da regra BR 
+        dias_totais = (self.vencimento - self.data_referencia).days
+
+        # ASSUMINDO PAGAMENTO DE CUPOM SEMESTRAL
+        valor_cupom, taxa, total_periodos = self._base_semestral(self.VALOR_FACE, self.cupom/100, self.taxa/100, dias_totais)
+
+        # Calcular soma dos VPLs dos fluxos de caixa de cupons
+        vpl_cupons = sum([self._vpl(valor_cupom, taxa, t) for t in range(1, total_periodos + 1)])
+
+        # Calcular VPL da curva
+        vpl_curva = self._vpl(self.VALOR_FACE, taxa, total_periodos)
+
+        return vpl_cupons + vpl_curva
+
+    def duration_modificada(self) -> float:
+        return self._duration() / (1 + self.taxa/100)
+
+    def _duration(self) -> float:
+        if self.localidade == Localidade.BR:
+            return self.periodo / 252
+        elif self.localidade == Localidade.US:
+            # EMPREGANDO LÓGICA SEMESTRAL
+            dias_totais = (self.vencimento - self.data_referencia).days
+            valor_cupom, taxa, total_periodos = self._base_semestral(self.VALOR_FACE, self.cupom/100, self.taxa/100, dias_totais)
+
+            # Calcular VPL dos fluxos de caixa dos cupons
+            vpl_cupons = sum([self._vpl(valor_cupom, taxa, t) for t in range(1, total_periodos + 1)])
+
+            # Calcular VPL dos fluxos de caixa dos cupons ponderado pelo tempo
+            vpl_cupons_ponderado = sum([self._vpl(valor_cupom, taxa, t) * t for t in range(1, total_periodos + 1)])
+
+            return (vpl_cupons_ponderado / vpl_cupons) / 2 # Dividir por 2 para encontrar base anual
+        else:
+            raise ValueError("Localidade inválida.")
+
+    @staticmethod
+    def _vpl(valor_base: float, taxa: float, periodo: float) -> float:
+        assert (taxa > 0) and (taxa <= 1), "Taxa muito alta. Checar se valor inserido foi nominal ao invés de percentual."
+        return valor_base / ((1 + taxa) ** periodo)
+
+    @staticmethod
+    def _base_semestral(
+            valor_face: float,
+            cupom_anual: float,
+            taxa_anual: float,
+            dias_totais: float
+    ) -> tuple[float, float, float]:
+         valor_cupom_semestral = (valor_face * (cupom_anual/100))/2 # Cupom é valor anual, então divide-se por dois para encontrar o semestral
+         taxa_semestral = taxa_anual / 2 # Dividir por 2 para transformar anual em semestral
+         total_periodos = (dias_totais / 180).__floor__() # Dividir por 180 dias para determinar o número de semestres
+         return valor_cupom_semestral, taxa_semestral, total_periodos
+        

@@ -65,7 +65,7 @@ class Posicao:
 
     @property
     def fatores_risco(self) -> tuple[FatoresRisco]:
-        adicional_cambio = (FatoresRisco.CAMBIO,) if self.localidade == Localidade.US else ()
+        adicional_cambio = (FatoresRisco.CAMBIO_USDBRL,) if self.localidade == Localidade.US else ()
         if isinstance(self.ativo, Union[AcoesBr, AcoesUs]):
             fatores_risco = FatoresRisco.ACAO,
         elif isinstance(self.ativo, Opcoes):
@@ -73,8 +73,10 @@ class Posicao:
         elif isinstance(self.ativo, Titulos):
             fatores_risco = FatoresRisco.JUROS,
         elif isinstance(self.ativo, Futuros):
-            if self.produto in [TipoFuturo.EURUSD, TipoFuturo.USDBRL, TipoFuturo.USDCAD, TipoFuturo.USDJPY, TipoFuturo.USDMXN]:
-                fatores_risco = FatoresRisco.CAMBIO,
+            if self.produto == TipoFuturo.USDBRL:
+                fatores_risco = FatoresRisco.CAMBIO_USDBRL,
+            if self.produto in [TipoFuturo.EURUSD, TipoFuturo.USDCAD, TipoFuturo.USDJPY, TipoFuturo.USDMXN]:
+                fatores_risco = FatoresRisco.CAMBIO_USDOUTROS, FatoresRisco.CAMBIO_USDBRL,
             elif self.produto == TipoFuturo.DI:
                 fatores_risco = FatoresRisco.JUROS,
             elif self.produto == TipoFuturo.IBOV:
@@ -88,14 +90,9 @@ class Posicao:
         
 
 class Carteira:
-    DATA_REFERENCIA = date(2025, 5, 26)
-
-    def __init__(self, inputs_data_handler: InputsDataHandler):
-        self.POSICAO_1 = Posicao(AcoesBr.EMBRAER, 1500, inputs_data_handler)
-        self.POSICAO_2 = Posicao(AcoesBr.CASAS_BAHIA, 24500, inputs_data_handler)
-        self.POSICAO_3 = Posicao(AcoesUs.FORD_MOTORS, 1700, inputs_data_handler)
-        self.POSICAO_4 = Posicao(Opcoes.OPCAO_9, 1.5, inputs_data_handler)
-        self.POSICAO_5 = Posicao(Futuros.FUTURO_15, 0.6, inputs_data_handler)
-        self.POSICAO_6 = Posicao(Futuros.FUTURO_9, 0.2, inputs_data_handler)
-        self.POSICAO_7 = Posicao(Futuros.FUTURO_25, 1700, inputs_data_handler)
-        self.POSICAO_8 = Posicao(Titulos.TITULO_9, 250000, inputs_data_handler)
+    def __init__(self, posicoes: list[Posicao], data_referencia: date):
+        self.data_referencia = data_referencia
+        
+        for i, posicao in enumerate(posicoes, start=1):
+            atributo = f"POSICAO_{i}"
+            setattr(self, atributo, posicao)
