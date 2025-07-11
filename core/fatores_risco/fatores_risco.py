@@ -8,7 +8,7 @@ from pandas import DataFrame, Series, concat
 from core.carteira import Carteira, Posicao
 from core.renda_fixa.renda_fixa import RendaFixa
 from inputs.data_handler import InputsDataHandler
-from utils.enums import Colunas, FatoresRisco, Localidade, TipoFuturo, Futuros, Opcoes
+from utils.enums import Colunas, FatoresRisco, Localidade, TipoFuturo, Futuros, Opcoes, AcoesBr, AcoesUs
 
 
 class MatrizFatoresRisco:
@@ -42,8 +42,10 @@ class MatrizFatoresRisco:
                 
                 # Definir filtro a ser utilizado sobre o dataframe de fatores de risco
                 nome_serie = nomear_vetor_fator_risco(fr, p)
-                if fr == FatoresRisco.ACAO:
+                if (fr == FatoresRisco.ACAO) and (isinstance(p.ativo, AcoesBr) or isinstance(p.ativo, AcoesUs)):
                     filtro = p.ativo.value
+                elif (fr == FatoresRisco.ACAO) or (fr == FatoresRisco.VOLATILIDADE):
+                    filtro = p.produto.value
                 elif (fr == FatoresRisco.CAMBIO_USDBRL) and (len(p.fatores_risco) > 1):
                     filtro = TipoFuturo.USDBRL.name
                 elif fr == FatoresRisco.JUROS:
