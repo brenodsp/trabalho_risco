@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Optional, Union
 
-from pandas import DataFrame, date_range, to_datetime
+from pandas import DataFrame, Timestamp, date_range, to_datetime
 
 from inputs.data_handler import InputsDataHandler
 from utils.enums import Colunas, Localidade
@@ -30,24 +30,25 @@ class RendaFixa:
     def periodo(self) -> Union[int, str]:
         # Não fazer o cálculo de DU em caso de renda fixa americana
         if self.localidade == Localidade.BR:
-            return self._calcular_du()
+            return self.calcular_du(self.data_referencia, self.vencimento, self.inputs_data_handler)
         elif self.localidade == Localidade.US:
             return self._definir_vertice_treasury()
         else:
             raise ValueError("Localidade desconhecida.")
         
-    def _calcular_du(self) -> int:
+    @classmethod
+    def calcular_du(cls, data_referencia: Timestamp, vencimento: Timestamp, inputs: InputsDataHandler) -> int:
         # Carregar dados de feriados, filtrar datas e criar coluna de validação de feriado
-        feriados = self.inputs_data_handler.feriados()
+        feriados = inputs.feriados()
         feriados = feriados.loc[
-            (feriados[Colunas.DATA.value] >= self.data_referencia) & 
-            (feriados[Colunas.DATA.value] <= self.vencimento)
+            (feriados[Colunas.DATA.value] >= data_referencia) & 
+            (feriados[Colunas.DATA.value] <= vencimento)
         ]
 
         feriados = feriados.assign(eh_feriado=True)[[Colunas.DATA.value, "eh_feriado"]]
 
         # Criar DataFrame com horizonte completo de dias da data de referência até o vencimento
-        dias_corridos = date_range(self.data_referencia, self.vencimento)
+        dias_corridos = date_range(data_referencia, vencimento)
 
         # Juntar filtrar feriados e finais de semana
         feriados[Colunas.DATA.value] = to_datetime(feriados[Colunas.DATA.value])
