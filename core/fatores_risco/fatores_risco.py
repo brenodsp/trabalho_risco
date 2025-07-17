@@ -213,13 +213,22 @@ class CalculosFatoresRisco:
             colunas = [
                 Colunas.DATA.value,
                 Colunas.ATIVO.value,
-                Colunas.VARIACAO.value if fator_risco == FatoresRisco.ACAO else Colunas.VOLATILIDADE.value
+                Colunas.VARIACAO.value
             ]
-            return cls.calcular_volatilidade(
-                cls.calcular_variacao(df, fator_risco, Colunas.ATIVO, Colunas.PRECO),
-                localidade,
-                lambda_
-            )[colunas]
+            retorno = cls.calcular_variacao(df, FatoresRisco.ACAO, Colunas.ATIVO, Colunas.PRECO)
+            if fator_risco == FatoresRisco.VOLATILIDADE:
+                return cls.calcular_variacao(
+                    cls.calcular_volatilidade(
+                        retorno,
+                        localidade,
+                        lambda_
+                    ).sort_values(Colunas.DATA.value, ascending=False),
+                    fator_risco,
+                    Colunas.ATIVO,
+                    Colunas.VOLATILIDADE
+                )[colunas]
+            else:
+                return retorno[colunas]
         elif fator_risco == FatoresRisco.JUROS:
             df = RendaFixa(
                 data_referencia,
