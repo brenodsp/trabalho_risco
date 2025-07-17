@@ -161,8 +161,8 @@ class CalculosFatoresRisco:
         return df
 
     @classmethod
-    def ewma_serie(cls, valor_calculado: Series, valor_fator_risco: Series, lambda_: float = 0.94) -> Series:
-        return lambda_ * valor_calculado.shift(1) + (1 - lambda_) * valor_fator_risco
+    def ewma_recursivo(cls, coluna_ewma: Series, serie_fator_risco: Series, lambda_: float = 0.94) -> Series:
+        return lambda_ * coluna_ewma.shift(1).fillna(0) + (1 - lambda_) * serie_fator_risco
     
     @classmethod
     def ewma_unitario(cls, valor_calculado: float, valor_fator_risco: float, lambda_: float = 0.94) -> float:
@@ -175,15 +175,21 @@ class CalculosFatoresRisco:
 
         # Iniciar modelo
         df[Colunas.VARIANCIA_EWMA.value] = 0.0
+        df = df.sort_values([Colunas.ATIVO.value, Colunas.DATA.value]).reset_index(drop=True)
+        datas = df.sort_values(Colunas.DATA.value)[Colunas.DATA.value].drop_duplicates()
+        for data in datas:
+            ids = df.loc[df[Colunas.DATA.value] == data].index
 
-        # Efetuar cálculo de variância seguindo modelo EWMA
-        df[Colunas.VARIANCIA_EWMA.value] = df.sort_values(Colunas.DATA.value)\
-                                             .groupby(agrupar_por.value)\
-                                             .apply(lambda group: cls.ewma_serie(
-                                                 group[Colunas.VARIANCIA_EWMA.value], group[Colunas.VARIACAO.value] ** 2, lambda_
-                                             ))\
-                                             .reset_index()\
-                                             [0]
+            # Efetuar cálculo de variância seguindo modelo EWMA
+            df.loc[df[Colunas.DATA.value] == data, Colunas.VARIANCIA_EWMA.value] = (
+                df.groupby(agrupar_por.value)
+                  .apply(lambda group: cls.ewma_recursivo(
+                      group[Colunas.VARIANCIA_EWMA.value], pow(group[Colunas.VARIACAO.value], 2), lambda_
+                  ))
+                  .reset_index()
+                  .filter(items=ids, axis=0)
+                  [0]
+            )
         return df
 
     
