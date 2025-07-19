@@ -75,26 +75,26 @@ class VarHistorico:
             # Pegar valores de referência para a geração de cenários
             if isinstance(posicao.ativo, AcoesBr) or isinstance(posicao.ativo, AcoesUs):
                 if posicao.localidade == Localidade.BR:
-                    ultimo_preco = self.inputs.acoes_br()
+                    nocional = self.inputs.acoes_br()
                     cambio = 1.0
                 else:
-                    ultimo_preco = self.inputs.acoes_us()
+                    nocional = self.inputs.acoes_us()
                     cambio = self.inputs.fx()
                     cambio = float(cambio.loc[
                         (cambio[Colunas.CAMBIO.value] == TipoFuturo.USDBRL.name) &
                         (cambio[Colunas.DATA.value] == data_ref)
                     ][Colunas.VALOR.value].values[0])
                     
-                data_ref = ultimo_preco.loc[ultimo_preco[Colunas.DATA.value] <= to_datetime(self.carteira.data_referencia)][Colunas.DATA.value].max()
-                ultimo_preco = float(ultimo_preco.loc[
-                    (ultimo_preco[Colunas.ATIVO.value] == posicao.ativo.value) &
-                    (ultimo_preco[Colunas.DATA.value] == data_ref)
+                data_ref = nocional.loc[nocional[Colunas.DATA.value] <= to_datetime(self.carteira.data_referencia)][Colunas.DATA.value].max()
+                nocional = float(nocional.loc[
+                    (nocional[Colunas.ATIVO.value] == posicao.ativo.value) &
+                    (nocional[Colunas.DATA.value] == data_ref)
                 ][Colunas.PRECO.value].values[0])
 
                 retornos_posicao[Colunas.PNL.value] = self._calcular_pnl(
                     posicao.quantidade, 
-                    cambio * ultimo_preco, 
-                    ultimo_preco * (1 + retornos_posicao[posicao.ativo.name])
+                    cambio * nocional, 
+                    nocional * (1 + retornos_posicao[posicao.ativo.name])
                 )
 
             elif isinstance(posicao.ativo, Opcoes):
@@ -130,11 +130,27 @@ class VarHistorico:
                     retornos_posicao["cenario_preco"]
                 )
             
+            elif isinstance(posicao.ativo, Futuros) and posicao.produto == TipoFuturo.IBOV:
+                # Recuperar informações de IBOV
+                acoes = self.inputs.acoes_br()
+                acoes = acoes.loc[acoes[Colunas.ATIVO.value] == posicao.produto.value]
+
+                # Definir referência de preço e data de avaliação
+                data_ref = acoes.loc[acoes[Colunas.DATA.value] <= to_datetime(self.carteira.data_referencia)][Colunas.DATA.value].max()
+                nocional = float(acoes.loc[
+                    (acoes[Colunas.DATA.value] == data_ref)
+                ][Colunas.PRECO.value].values[0])
+
+                # Calcular PnL
+                retornos_posicao[Colunas.PNL.value] = self._calcular_pnl(
+                    posicao.quantidade, 
+                    nocional, 
+                    nocional * (1 + retornos_posicao[posicao.produto.value])
+                )
+
             # elif futuro_di:
             
             # elif futuro_cambio:
-            
-            # elif futuro_indice:
             
             # elif titulo:
             
@@ -149,7 +165,9 @@ class VarHistorico:
 
             lista_pnl_posicao.append(df_posicao)
         
-        return concat(lista_pnl_posicao)
+        pnl_carteira = concat(lista_pnl_posicao)
+
+        # TODO: filtrar janela de cenários de PnL
             
 
     @staticmethod
