@@ -69,7 +69,7 @@ class VarHistorico:
                 nomear_vetor_fator_risco(fr, posicao)
                 for fr in posicao.fatores_risco
             ]
-            retornos_posicao = retornos.loc[:, fatores_risco]
+            retornos_posicao = retornos.loc[:, fatores_risco].reset_index()
             retornos_posicao[Colunas.POSICAO.value] = posicao.ativo.name
 
             # Pegar valores de referência para a geração de cenários
@@ -148,9 +148,38 @@ class VarHistorico:
                     nocional * (1 + retornos_posicao[posicao.produto.value])
                 )
 
-            # elif futuro_di:
+            elif isinstance(posicao.ativo, Futuros) and posicao.produto not in [TipoFuturo.DI, TipoFuturo.IBOV]:
+                # Recuperar informações de cambio
+                fx = self.inputs.fx()
+                fx_filtro = fx.loc[fx[Colunas.CAMBIO.value] == posicao.produto.name]
+
+                # Definir referência de preço e data de avaliação
+                data_ref = fx_filtro.loc[fx_filtro[Colunas.DATA.value] <= to_datetime(self.carteira.data_referencia)][Colunas.DATA.value].max()
+                ultimo_cambio = float(fx_filtro.loc[
+                    (fx_filtro[Colunas.DATA.value] == data_ref)
+                ][Colunas.VALOR.value].values[0])
+
+                # Ajustar valor nocional
+                if posicao.produto == TipoFuturo.USDBRL:
+                    dolar_brl = ultimo_cambio
+                    para_dolar = 1.0
+                else:
+                    dolar_brl = float(fx.loc[
+                        (fx[Colunas.DATA.value] == data_ref) &
+                        (fx[Colunas.CAMBIO.value] == TipoFuturo.USDBRL.name)
+                    ][Colunas.VALOR.value].values[0])
+                    para_dolar = ultimo_cambio
+                
+                nocional_ajustado = (100000 / para_dolar) * dolar_brl
+
+                # Calcular PnL
+                retornos_posicao[Colunas.PNL.value] = self._calcular_pnl(
+                    posicao.quantidade, 
+                    nocional_ajustado, 
+                    nocional_ajustado * (1 + retornos_posicao[posicao.produto.name])
+                )
             
-            # elif futuro_cambio:
+            # elif futuro_di:
             
             # elif titulo:
             
