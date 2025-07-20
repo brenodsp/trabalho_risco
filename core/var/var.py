@@ -179,7 +179,14 @@ class VarHistorico:
                     nocional_ajustado * (1 + retornos_posicao[posicao.produto.name])
                 )
             
-            # elif futuro_di:
+            elif isinstance(posicao.ativo, Futuros) and posicao.produto == TipoFuturo.DI:
+                # Calcular PnL
+                nocional = 100000
+                retornos_posicao[Colunas.PNL.value] = self._calcular_pnl(
+                    posicao.quantidade, 
+                    nocional, 
+                    nocional * (1 + retornos_posicao[posicao.produto.value])
+                )
             
             # elif titulo:
             
