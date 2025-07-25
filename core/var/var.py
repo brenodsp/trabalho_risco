@@ -91,10 +91,17 @@ class VarHistorico:
                     (nocional[Colunas.DATA.value] == data_ref)
                 ][Colunas.PRECO.value].values[0])
 
+                retorno = (
+                    (1 + retornos_posicao[posicao.ativo.name]) * (1 + retornos_posicao[TipoFuturo.USDBRL.name])
+                    if posicao.localidade == Localidade.US
+                    else
+                    (1 + retornos_posicao[posicao.ativo.name])
+                )
+
                 retornos_posicao[Colunas.PNL.value] = self._calcular_pnl(
                     posicao.quantidade, 
                     cambio * nocional, 
-                    nocional * (1 + retornos_posicao[posicao.ativo.name])
+                    cambio *nocional * retorno
                 )
 
             elif isinstance(posicao.ativo, Opcoes):
@@ -185,7 +192,7 @@ class VarHistorico:
                 retornos_posicao[Colunas.PNL.value] = self._calcular_pnl(
                     posicao.quantidade, 
                     nocional, 
-                    nocional * (1 + retornos_posicao[posicao.produto.value])
+                    nocional * (1 + retornos_posicao[posicao.produto.value]/100)
                 )
             
             elif isinstance(posicao.ativo, Titulos):
