@@ -188,7 +188,81 @@ class VarHistorico:
                     nocional * (1 + retornos_posicao[posicao.produto.value])
                 )
             
-            # elif titulo:
+            elif isinstance(posicao.ativo, Titulos):
+                # Recuperar informações de títulos
+                metadados_titulos = self.inputs.titulos()
+                metadados_titulos = metadados_titulos.loc[metadados_titulos[Colunas.ID.value] == posicao.ativo.value]
+                titulos = (
+                    self.inputs.treasury()
+                    if posicao.localidade == Localidade.US
+                    else
+                    self.inputs.di()
+                )
+
+                # Utilizar framework de renda fixa para calcular propriedades do título
+                rf = RendaFixa(
+                    self.carteira.data_referencia, 
+                    to_datetime(metadados_titulos["vencimento"].values[0]).date(), 
+                    posicao.localidade, 
+                    self.inputs,
+                    cupom=float(metadados_titulos["cupom"].values[0]),
+                    taxa=float(metadados_titulos["taxa"].values[0])
+                )
+                pu = rf.pu()
+                curva_juros = rf.curva_juros()
+                _, _, total_periodos = rf._base_semestral(
+                    0,
+                    0.1,
+                    0.1,
+                    (rf.vencimento - rf.data_referencia).days
+                )
+
+                # Adicionar dólar ao DataFrame de juros
+                fx = self.inputs.fx()
+                dolar = fx.loc[fx[Colunas.CAMBIO.value] == TipoFuturo.USDBRL.name]\
+                        [[Colunas.DATA.value, Colunas.VALOR.value]]\
+                        .rename(columns={Colunas.VALOR.value: TipoFuturo.USDBRL.name})
+                if posicao.localidade == Localidade.BR:
+                    dolar[TipoFuturo.USDBRL.name] = 1.0
+                curva_juros = curva_juros.merge(dolar, on=Colunas.DATA.value, how="left")
+
+                # Calcular cupons por cada periodo
+                for i in range(1, total_periodos + 1):
+                    coluna_fluxo = f"cupom_{i}"
+                    curva_juros[coluna_fluxo] = curva_juros.apply(
+                        lambda row: rf._vpl(
+                            rf._base_semestral(rf.VALOR_FACE * row[TipoFuturo.USDBRL.name], rf.cupom/100, 0.1, 1)[0], 
+                            row[Colunas.VALOR.value]/200,
+                            i
+                        ), axis=1
+                    )
+                
+                # Calcular pu para cada data
+                curva_juros["total_cupons"] = curva_juros[[f"cupom_{i}" for i in range(1, total_periodos + 1)]].sum(axis=1)
+                curva_juros["pu"] = curva_juros.apply(
+                    lambda row: rf._vpl(
+                            rf.VALOR_FACE * row[TipoFuturo.USDBRL.name], 
+                            row[Colunas.VALOR.value]/200,
+                            total_periodos
+                        ) + row["total_cupons"], axis=1
+                    )
+                
+                # Calcular retornos do título
+                curva_juros[Colunas.RETORNO.value] = curva_juros["pu"].pct_change().fillna(0)
+
+                # Calcular PnL
+                curva_juros[Colunas.PNL.value] = self._calcular_pnl(
+                    posicao.quantidade, 
+                    pu, 
+                    pu * (1 + curva_juros[Colunas.RETORNO.value])
+                )
+
+                # Adicionar coluna de PnL ao DataFrame de retornos
+                retornos_posicao = retornos_posicao.merge(
+                    curva_juros[[Colunas.DATA.value, Colunas.PNL.value]],
+                    on=Colunas.DATA.value,
+                    how="left"
+                )
             
             else:
                 raise ValueError("Ativo não mapeado.")
