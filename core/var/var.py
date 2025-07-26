@@ -16,10 +16,12 @@ from utils.enums import IntervaloConfianca, AcoesBr, AcoesUs, Opcoes, Futuros, T
 class VarParametrico:
     def __init__(
             self, 
+            carteira: Carteira,
             exposicoes: ExposicaoCarteira, 
             retornos_fatores_risco: MatrizFatoresRisco,
             intervalo_confianca: IntervaloConfianca
     ):
+        self.carteira = carteira
         self.exposicoes = exposicoes
         self.retornos_fatores_risco = retornos_fatores_risco
         self.intervalo_confianca = intervalo_confianca
@@ -31,15 +33,30 @@ class VarParametrico:
             self.intervalo_confianca.value
         )
     
-    def participacao_percentual(self) -> DataFrame:
+    def participacao_percentual_posicoes(self) -> DataFrame:
+        # Calcular exposição da carteira aos fatores de risco
+        exposicao = self.exposicoes.exposicao_carteira()
+
+        # Calcular participação percentual de cada fator de risco ao VaR da carteira
+        percent_fatores_risco = self._participacao_percentual_fatores_risco(exposicao)
+
+        # Calcular VaR componente de cada posição
+        var_componente = self._var_componente_carteira(exposicao, var_marginal)
+        componente_total = float(var_componente.values.sum())
+
+        # Calcular participação percentual de cada posição
+        return var_componente / componente_total
+    
+    def _participacao_percentual_fatores_risco(self, exposicao: DataFrame) -> DataFrame:
         # Calcular VaR marginal de cada fator de risco
-        var_marginal = self._var_marginal_carteira()
+        var_marginal = self._var_marginal_carteira(exposicao)
 
         # Calcular VaR componente de cada fator de risco
-        var_componente = self._var_componente_carteira(var_marginal)
+        var_componente = self._var_componente_carteira(exposicao, var_marginal)
+        componente_total = float(var_componente.values.sum())
 
         # Calcular participação percentual de cada fator de risco
-        participacao_percentual = var_componente / exposicao
+        return var_componente / componente_total
 
     def var_parametrico_posicao(self, posicao: Posicao, data_referencia: date, inputs: InputsDataHandler):
         fatores_risco_posicao = [nomear_vetor_fator_risco(fr, posicao) for fr in posicao.fatores_risco]
@@ -60,12 +77,11 @@ class VarParametrico:
     def _calculo_var_matricial(vetor_exposicao: array, matriz_retorno: array, intervalo_confianca: float) -> float:
         return sqrt((vetor_exposicao @ matriz_retorno @ vetor_exposicao.T) * (intervalo_confianca ** 2))
     
-    def _var_marginal_carteira(self) -> DataFrame:
+    def _var_marginal_carteira(self, exposicao: DataFrame) -> DataFrame:
         """
         Calcula o VaR marginal de cada fator de risco da carteira.
         """
         # Calcular exposições da carteira
-        exposicao = self.exposicoes.exposicao_carteira()
         nomes_fatores_risco = exposicao.columns.to_list()
 
         # Calcular matriz de covariância dos retornos
@@ -81,6 +97,12 @@ class VarParametrico:
         
         return DataFrame(var_marginal, columns=nomes_fatores_risco)
     
+    def _var_componente_carteira(self, exposicao: DataFrame, var_marginal: DataFrame) -> DataFrame:
+        return DataFrame(
+            self._calcular_var_componente(var_marginal.values, exposicao.values),
+            columns=exposicao.columns.to_list()
+        )
+    
     @staticmethod
     def _calcular_var_marginal(
         vetor_exposicao: array, 
@@ -91,7 +113,7 @@ class VarParametrico:
         """
         Calcula o VaR marginal de um vetor de exposições e uma matriz de retornos.
         """
-        return (intervalo_confianca / desvio_padrao_carteira) * (vetor_exposicao @ matriz_retorno)
+        return abs((intervalo_confianca / desvio_padrao_carteira) * (vetor_exposicao @ matriz_retorno))
     
     @staticmethod
     def _desvio_padrao_carteira(vetor_exposicao: array, matriz_retorno: array) -> float:
@@ -99,6 +121,13 @@ class VarParametrico:
         Calcula o desvio padrão da carteira a partir do vetor de exposições e da matriz de retornos.
         """
         return sqrt(vetor_exposicao @ matriz_retorno @ vetor_exposicao.T)
+    
+    @staticmethod
+    def _calcular_var_componente(var_marginal: array, vetor_exposicao: array) -> array:
+        """
+        Calcula o VaR componente de cada fator de risco da carteira.
+        """
+        return var_marginal * vetor_exposicao
 
 
 class VarHistorico:
