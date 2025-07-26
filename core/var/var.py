@@ -79,16 +79,35 @@ class VarParametrico:
         # Calcular participação percentual de cada fator de risco
         return var_componente / componente_total
 
-    def var_parametrico_posicao(self, posicao: Posicao, data_referencia: date, inputs: InputsDataHandler):
-        fatores_risco_posicao = [nomear_vetor_fator_risco(fr, posicao) for fr in posicao.fatores_risco]
-        fatores_risco_carteira = self.exposicoes.exposicao_carteira().columns.to_list()
-        assert len([fr for fr in fatores_risco_posicao if fr in fatores_risco_carteira]) > 0, "Posição fornecida não consta na carteira."
+    def var_parametrico_posicao(self) -> DataFrame:
+        # Percorrer cada posição da carteira
+        posicoes = [p for p in self.carteira.__dict__.values() if isinstance(p, Posicao)]
 
-        carteira_simples = Carteira([posicao], data_referencia)
-        retorno = self.retornos_fatores_risco.matriz_cov_ewma().loc[fatores_risco_posicao, fatores_risco_posicao]
-        exposicao = ExposicaoCarteira(carteira_simples, inputs).exposicao_carteira()
+        lista_var = []
+        for posicao in posicoes:
+            # Nomear posicao
+            nome_posicao = posicao.ativo.name if isinstance(posicao.ativo, (AcoesBr, AcoesUs)) else posicao.produto.name
 
-        return self._calculo_var_matricial(exposicao.values, retorno.values, self.intervalo_confianca.value)
+            # Instanciar carteira simples para cálculo de exposição
+            carteira_simples = Carteira([posicao], self.carteira.data_referencia)
+        
+            # Calcular exposição da posição aos fatores de risco da carteira e o quanto a posição 
+            # é representativa para a exposição ao fator de risco na carteira
+            exposicao_posicao = ExposicaoCarteira(carteira_simples, self.exposicoes.inputs).exposicao_carteira()
+
+            # Calcular retornos dos fatores de risco
+            fatores_risco = MatrizFatoresRisco(carteira_simples, self.exposicoes.inputs).matriz_cov_ewma()
+
+            # Calcular VaR da posição
+            var_posicao = DataFrame({nome_posicao: [self._calculo_var_matricial(
+                exposicao_posicao.values, 
+                fatores_risco.values, 
+                self.intervalo_confianca.value
+            )]})
+            
+            lista_var.append(var_posicao)
+
+        return DataFrame(concat(lista_var, axis=1))
     
     @staticmethod
     def _calculo_var_matricial(vetor_exposicao: array, matriz_retorno: array, intervalo_confianca: float) -> float:
