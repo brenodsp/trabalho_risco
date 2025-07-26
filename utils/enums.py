@@ -10,6 +10,8 @@ class Colunas(Enum):
     EXPOSICAO = "exposicao"
     FATOR_RISCO = "fator_risco"
     ID = "id"
+    PNL = "pnl"
+    POSICAO = "posicao"
     PRAZO = "prazo"
     PRECO = "preco"
     RETORNO = "retorno"

@@ -19,8 +19,8 @@ posicoes_canonicas = [
     Posicao(Opcoes.OPCAO_9, 1.5, data_handler),
     Posicao(Futuros.FUTURO_15, 0.6, data_handler),
     Posicao(Futuros.FUTURO_9, 0.2, data_handler),
-    Posicao(Futuros.FUTURO_25, 1700, data_handler),
-    Posicao(Titulos.TITULO_9, 250000, data_handler)
+    Posicao(Futuros.FUTURO_25, 17, data_handler),
+    Posicao(Titulos.TITULO_9, 25, data_handler)
 ]
 
 carteira_canonica = Carteira(posicoes_canonicas, date(2025, 5, 26))
@@ -28,7 +28,7 @@ teste = VarHistorico(
     carteira_canonica,
     MatrizFatoresRisco(carteira_canonica, data_handler),
     data_handler
-)._gerar_cenarios()
+).var_historico_carteira(500, IntervaloConfianca.P99)
 
 
 # Questões

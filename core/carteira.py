@@ -22,15 +22,15 @@ class Posicao:
         # Extrair informações adicionais sobre futuros, títulos e opções
         if isinstance(self.ativo, Futuros):
             df = inputs_data_handler.futuros()
-            tipo_futuro = df[df["id"] == self.ativo.value]["tipo"].values[0]
+            tipo_futuro = df[df[Colunas.ID.value] == self.ativo.value]["tipo"].values[0]
             self.produto = definir_tipo_futuro(tipo_futuro)
         elif isinstance(self.ativo, Titulos):
             df = inputs_data_handler.titulos()
-            produto = df[df["id"] == self.ativo.value]["tipo"].values[0]
+            produto = df[df[Colunas.ID.value] == self.ativo.value]["tipo"].values[0]
             self.produto = definir_tipo_titulo(produto)
         elif isinstance(self.ativo, Opcoes):
             df = inputs_data_handler.opcoes()
-            produto = df[df["id"] == self.ativo.value]["underlying"].values[0]
+            produto = df[df[Colunas.ID.value] == self.ativo.value]["underlying"].values[0]
             self.produto = definir_produto_opcao(produto)
 
     def _gerar_informacao_juros(self, inputs_data_handler: InputsDataHandler) -> None:
