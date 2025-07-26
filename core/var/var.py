@@ -40,13 +40,34 @@ class VarParametrico:
         # Calcular participação percentual de cada fator de risco ao VaR da carteira
         percent_fatores_risco = self._participacao_percentual_fatores_risco(exposicao)
 
-        # Calcular VaR componente de cada posição
-        var_componente = self._var_componente_carteira(exposicao, var_marginal)
-        componente_total = float(var_componente.values.sum())
+        # Percorrer cada posição da carteira
+        posicoes = [p for p in self.carteira.__dict__.values() if isinstance(p, Posicao)]
 
-        # Calcular participação percentual de cada posição
-        return var_componente / componente_total
-    
+        lista_participacao = []
+        for posicao in posicoes:
+            # Nomear posicao
+            nome_posicao = posicao.ativo.name if isinstance(posicao.ativo, (AcoesBr, AcoesUs)) else posicao.produto.name
+
+            # Instanciar carteira simples para cálculo de exposição
+            carteira_simples = Carteira([posicao], self.carteira.data_referencia)
+        
+            # Calcular exposição da posição aos fatores de risco da carteira e o quanto a posição 
+            # é representativa para a exposição ao fator de risco na carteira
+            exposicao_posicao = ExposicaoCarteira(carteira_simples, self.exposicoes.inputs).exposicao_carteira()
+            representacao_fator_risco = (exposicao_posicao / exposicao.loc[:, exposicao_posicao.columns]).reset_index(drop=True)
+
+            # Calcular participacao percentual da posição para o risco da carteira
+            participacao_posicao = DataFrame((
+                representacao_fator_risco * percent_fatores_risco.loc[:, exposicao_posicao.columns]
+            ).sum(axis=1).reset_index(drop=True)).rename(columns={0: nome_posicao})
+
+            lista_participacao.append(participacao_posicao)
+        
+        # Concatenar participações percentuais de cada posição
+        participacao_df = concat(lista_participacao, axis=1).fillna(0).reset_index(drop=True)
+        assert float(participacao_df.values.sum()) == 1.0, "Participação percentual das posições não soma 100%."
+        return participacao_df
+
     def _participacao_percentual_fatores_risco(self, exposicao: DataFrame) -> DataFrame:
         # Calcular VaR marginal de cada fator de risco
         var_marginal = self._var_marginal_carteira(exposicao)
