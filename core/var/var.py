@@ -282,27 +282,34 @@ class VarHistorico:
 
             lista_pnl_posicao.append(df_posicao)
         
-        pnl_carteira = concat(lista_pnl_posicao)
+        pnl_carteira = concat(lista_pnl_posicao).sort_values(Colunas.DATA.value, ascending=False).reset_index(drop=True)
 
-        # TODO: filtrar janela de cenários de PnL
+        # Filtrar janela de cenários de PnL
+        datas = pnl_carteira[Colunas.DATA.value].drop_duplicates().reset_index(drop=True)[:n_cenarios]
+        return pnl_carteira.loc[pnl_carteira[Colunas.DATA.value].isin(datas)]
             
 
     @staticmethod
     def _calcular_pnl(qtd: float, preco_referencia: float, preco_cenario: Series) -> Series:
         return qtd * (preco_cenario - preco_referencia)
 
-    def var_historico_carteira(self, n_cenarios: int) -> float:
-        # TODO: LEMBRANDO QUE O VAR DEVE SER UM VALOR ABSOLUTO
-        # TODO: implementar regra de VaR histórico da carteira
-        cenarios_pnl = self._gerar_cenarios()
-        pass
+    def var_historico_carteira(self, n_cenarios: int, intervalo_confianca: IntervaloConfianca) -> float:
+        # LEMBRANDO QUE O VAR É UM VALOR ABSOLUTO
+        cenarios_pnl = self._gerar_cenarios(n_cenarios).groupby(Colunas.DATA.value).sum().reset_index()
+        return self._calcular_var_historico(
+            cenarios_pnl[Colunas.PNL.value],
+            intervalo_confianca
+        )
 
-    def var_historico_posição(self, posicao: Posicao, n_cenarios: int) -> float:
-        # TODO: implementar regra de VaR histórico da posição
-        self._gerar_cenarios()
-        pass
-
+    @staticmethod
+    def _calcular_var_historico(
+        cenarios_pnl: Series, 
+        intervalo_confianca: IntervaloConfianca
+    ) -> float:
+        ic = int(intervalo_confianca.name.split("P")[1])/100
+        return float(abs(cenarios_pnl.quantile(1-ic)))
+        
+    
     def estresse_carteira(self, n_cenarios: int) -> float:
-        # TODO: implementar regra de estresse da carteira (pior cenário)
-        cenarios_pnl = self._gerar_cenarios()
-        pass
+        cenarios_pnl = self._gerar_cenarios(n_cenarios).groupby(Colunas.DATA.value).sum().reset_index()
+        return abs(float(cenarios_pnl[Colunas.PNL.value].min()))
