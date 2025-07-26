@@ -30,6 +30,16 @@ class VarParametrico:
             self.retornos_fatores_risco.matriz_cov_ewma().values, 
             self.intervalo_confianca.value
         )
+    
+    def participacao_percentual(self) -> DataFrame:
+        # Calcular VaR marginal de cada fator de risco
+        var_marginal = self._var_marginal_carteira()
+
+        # Calcular VaR componente de cada fator de risco
+        var_componente = self._var_componente_carteira(var_marginal)
+
+        # Calcular participação percentual de cada fator de risco
+        participacao_percentual = var_componente / exposicao
 
     def var_parametrico_posicao(self, posicao: Posicao, data_referencia: date, inputs: InputsDataHandler):
         fatores_risco_posicao = [nomear_vetor_fator_risco(fr, posicao) for fr in posicao.fatores_risco]
@@ -47,7 +57,44 @@ class VarParametrico:
         return sqrt((vetor_exposicao @ matriz_retorno @ vetor_exposicao.T) * (intervalo_confianca ** 2))
     
     @staticmethod
-    def desvio_padrao_carteira(vetor_exposicao: array, matriz_retorno: array) -> float:
+    def _calculo_var_matricial(vetor_exposicao: array, matriz_retorno: array, intervalo_confianca: float) -> float:
+        return sqrt((vetor_exposicao @ matriz_retorno @ vetor_exposicao.T) * (intervalo_confianca ** 2))
+    
+    def _var_marginal_carteira(self) -> DataFrame:
+        """
+        Calcula o VaR marginal de cada fator de risco da carteira.
+        """
+        # Calcular exposições da carteira
+        exposicao = self.exposicoes.exposicao_carteira()
+        nomes_fatores_risco = exposicao.columns.to_list()
+
+        # Calcular matriz de covariância dos retornos
+        matriz_cov = self.retornos_fatores_risco.matriz_cov_ewma()
+
+        # Calcuar VaR marginal da carteira e posteriormente transformar em DataFrame
+        var_marginal = self._calcular_var_marginal(
+            exposicao.values, 
+            matriz_cov.values,
+            self._desvio_padrao_carteira(exposicao.values, matriz_cov.values),
+            self.intervalo_confianca.value
+        )
+        
+        return DataFrame(var_marginal, columns=nomes_fatores_risco)
+    
+    @staticmethod
+    def _calcular_var_marginal(
+        vetor_exposicao: array, 
+        matriz_retorno: array, 
+        desvio_padrao_carteira: float,
+        intervalo_confianca: float
+    ) -> array:
+        """
+        Calcula o VaR marginal de um vetor de exposições e uma matriz de retornos.
+        """
+        return (intervalo_confianca / desvio_padrao_carteira) * (vetor_exposicao @ matriz_retorno)
+    
+    @staticmethod
+    def _desvio_padrao_carteira(vetor_exposicao: array, matriz_retorno: array) -> float:
         """
         Calcula o desvio padrão da carteira a partir do vetor de exposições e da matriz de retornos.
         """
