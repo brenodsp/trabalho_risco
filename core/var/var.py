@@ -45,6 +45,13 @@ class VarParametrico:
     @staticmethod
     def _calculo_var_matricial(vetor_exposicao: array, matriz_retorno: array, intervalo_confianca: float) -> float:
         return sqrt((vetor_exposicao @ matriz_retorno @ vetor_exposicao.T) * (intervalo_confianca ** 2))
+    
+    @staticmethod
+    def desvio_padrao_carteira(vetor_exposicao: array, matriz_retorno: array) -> float:
+        """
+        Calcula o desvio padrão da carteira a partir do vetor de exposições e da matriz de retornos.
+        """
+        return sqrt(vetor_exposicao @ matriz_retorno @ vetor_exposicao.T)
 
 
 class VarHistorico:
