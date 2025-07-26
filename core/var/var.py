@@ -203,6 +203,7 @@ class VarHistorico:
                 else:
                     nocional = self.inputs.acoes_us()
                     cambio = self.inputs.fx()
+                    data_ref = cambio.loc[cambio[Colunas.DATA.value] <= to_datetime(self.carteira.data_referencia)][Colunas.DATA.value].max()
                     cambio = float(cambio.loc[
                         (cambio[Colunas.CAMBIO.value] == TipoFuturo.USDBRL.name) &
                         (cambio[Colunas.DATA.value] == data_ref)
