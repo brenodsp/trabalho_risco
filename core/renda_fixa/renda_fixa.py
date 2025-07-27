@@ -126,9 +126,11 @@ class RendaFixa:
         )
 
     def pu(self) -> float:
-        # TODO: talvez implementar depois método para juros BR
         if self.localidade == Localidade.BR:
-            return None
+            assert self.taxa is not None, "Taxa deve ser informada para cálculo de PU."
+            return float(
+                self.VALOR_FACE / ((1 + self.taxa/100) ** (self.periodo / 252))
+            )
         
         # TODO: condicionar lógica à localidade em caso de posterior aplicação da regra BR 
         dias_totais = (self.vencimento - self.data_referencia).days
