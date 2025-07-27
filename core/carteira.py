@@ -53,7 +53,6 @@ class Posicao:
             self.cupom = None
             self.taxa = None
         
-
     @property
     def localidade(self) -> Localidade:
         if (not isinstance(self.ativo, AcoesUs)) and (not isinstance(self.ativo, Titulos)):
@@ -76,7 +75,7 @@ class Posicao:
             if self.produto == TipoFuturo.USDBRL:
                 fatores_risco = FatoresRisco.CAMBIO_USDBRL,
             if self.produto in [TipoFuturo.EURUSD, TipoFuturo.USDCAD, TipoFuturo.USDJPY, TipoFuturo.USDMXN]:
-                fatores_risco = FatoresRisco.CAMBIO_USDOUTROS, FatoresRisco.CAMBIO_USDBRL,
+                fatores_risco = FatoresRisco.CAMBIO_USDOUTROS,
             elif self.produto == TipoFuturo.DI:
                 fatores_risco = FatoresRisco.JUROS,
             elif self.produto == TipoFuturo.IBOV:
