@@ -24,39 +24,40 @@ posicoes_canonicas = [
 ]
 
 carteira_canonica = Carteira(posicoes_canonicas, date(2025, 5, 26))
-teste = VarHistorico(
-    carteira_canonica,
-    MatrizFatoresRisco(carteira_canonica, data_handler),
-    data_handler
-).var_historico_carteira(500, IntervaloConfianca.P99)
+# teste = VarHistorico(
+#     carteira_canonica,
+#     MatrizFatoresRisco(carteira_canonica, data_handler),
+#     data_handler
+# ).var_historico_carteira(500, IntervaloConfianca.P99)
 
 
 # Questões
 ## a
-print(f"[{datetime.now()}] Solucionando questão a)")
-a = {
-    p: [f.name for f in carteira_canonica.__getattribute__(p).fatores_risco]
-    for p in carteira_canonica.__dict__
-    if "POSICAO" in p
-}
+# print(f"[{datetime.now()}] Solucionando questão a)")
+# a = {
+#     p: [f.name for f in carteira_canonica.__getattribute__(p).fatores_risco]
+#     for p in carteira_canonica.__dict__
+#     if "POSICAO" in p
+# }
 
 ## b
 fatores_risco = MatrizFatoresRisco(carteira_canonica, data_handler)
 
 print(f"[{datetime.now()}] Solucionando questão b)")
-b = fatores_risco.matriz_cov_ewma()
+# b = fatores_risco.matriz_cov_ewma()
 
 ## c
 print(f"[{datetime.now()}] Solucionando questão c)")
-c = fatores_risco.matriz_cov_garch()
+# c = fatores_risco.matriz_cov_garch()
 
 ## d
 print(f"[{datetime.now()}] Solucionando questão d)")
 calculadora_var_parametrico = VarParametrico(
+    carteira_canonica,
     ExposicaoCarteira(carteira_canonica, data_handler),
     fatores_risco,
     IntervaloConfianca.P99
-)
+).var_parametrico_posicao()
 
 d = {
     p: calculadora_var_parametrico.var_parametrico_posicao(
