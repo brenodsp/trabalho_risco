@@ -173,3 +173,4 @@ class TipoVarHistorico(Enum):
     BOUDOUKH = auto()
     HULL_WHITE = auto()
     SIMPLES = auto()
+    TVE_POT = auto()
