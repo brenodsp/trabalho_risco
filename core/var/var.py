@@ -16,10 +16,12 @@ from utils.enums import IntervaloConfianca, AcoesBr, AcoesUs, Opcoes, Futuros, T
 class VarParametrico:
     def __init__(
             self, 
+            carteira: Carteira,
             exposicoes: ExposicaoCarteira, 
             retornos_fatores_risco: MatrizFatoresRisco,
             intervalo_confianca: IntervaloConfianca
     ):
+        self.carteira = carteira
         self.exposicoes = exposicoes
         self.retornos_fatores_risco = retornos_fatores_risco
         self.intervalo_confianca = intervalo_confianca
@@ -30,21 +32,142 @@ class VarParametrico:
             self.retornos_fatores_risco.matriz_cov_ewma().values, 
             self.intervalo_confianca.value
         )
+    
+    def participacao_percentual_posicoes(self) -> DataFrame:
+        # Calcular exposição da carteira aos fatores de risco
+        exposicao = self.exposicoes.exposicao_carteira()
 
-    def var_parametrico_posicao(self, posicao: Posicao, data_referencia: date, inputs: InputsDataHandler):
-        fatores_risco_posicao = [nomear_vetor_fator_risco(fr, posicao) for fr in posicao.fatores_risco]
-        fatores_risco_carteira = self.exposicoes.exposicao_carteira().columns.to_list()
-        assert len([fr for fr in fatores_risco_posicao if fr in fatores_risco_carteira]) > 0, "Posição fornecida não consta na carteira."
+        # Calcular participação percentual de cada fator de risco ao VaR da carteira
+        percent_fatores_risco = self._participacao_percentual_fatores_risco(exposicao)
 
-        carteira_simples = Carteira([posicao], data_referencia)
-        retorno = self.retornos_fatores_risco.matriz_cov_ewma().loc[fatores_risco_posicao, fatores_risco_posicao]
-        exposicao = ExposicaoCarteira(carteira_simples, inputs).exposicao_carteira()
+        # Percorrer cada posição da carteira
+        posicoes = [p for p in self.carteira.__dict__.values() if isinstance(p, Posicao)]
 
-        return self._calculo_var_matricial(exposicao.values, retorno.values, self.intervalo_confianca.value)
+        lista_participacao = []
+        for posicao in posicoes:
+            # Nomear posicao
+            nome_posicao = posicao.ativo.name if isinstance(posicao.ativo, (AcoesBr, AcoesUs)) else posicao.produto.name
+
+            # Instanciar carteira simples para cálculo de exposição
+            carteira_simples = Carteira([posicao], self.carteira.data_referencia)
+        
+            # Calcular exposição da posição aos fatores de risco da carteira e o quanto a posição 
+            # é representativa para a exposição ao fator de risco na carteira
+            exposicao_posicao = ExposicaoCarteira(carteira_simples, self.exposicoes.inputs).exposicao_carteira()
+            representacao_fator_risco = (exposicao_posicao / exposicao.loc[:, exposicao_posicao.columns]).reset_index(drop=True)
+
+            # Calcular participacao percentual da posição para o risco da carteira
+            participacao_posicao = DataFrame((
+                representacao_fator_risco * percent_fatores_risco.loc[:, exposicao_posicao.columns]
+            ).sum(axis=1).reset_index(drop=True)).rename(columns={0: nome_posicao})
+
+            lista_participacao.append(participacao_posicao)
+        
+        # Concatenar participações percentuais de cada posição
+        participacao_df = concat(lista_participacao, axis=1).fillna(0).reset_index(drop=True)
+        assert float(participacao_df.values.sum()) == 1.0, "Participação percentual das posições não soma 100%."
+        return participacao_df
+
+    def _participacao_percentual_fatores_risco(self, exposicao: DataFrame) -> DataFrame:
+        # Calcular VaR marginal de cada fator de risco
+        var_marginal = self._var_marginal_carteira(exposicao)
+
+        # Calcular VaR componente de cada fator de risco
+        var_componente = self._var_componente_carteira(exposicao, var_marginal)
+        componente_total = float(var_componente.values.sum())
+
+        # Calcular participação percentual de cada fator de risco
+        return var_componente / componente_total
+
+    def var_parametrico_posicao(self) -> DataFrame:
+        # Percorrer cada posição da carteira
+        posicoes = [p for p in self.carteira.__dict__.values() if isinstance(p, Posicao)]
+
+        lista_var = []
+        for posicao in posicoes:
+            # Nomear posicao
+            nome_posicao = posicao.ativo.name if isinstance(posicao.ativo, (AcoesBr, AcoesUs)) else posicao.produto.name
+
+            # Instanciar carteira simples para cálculo de exposição
+            carteira_simples = Carteira([posicao], self.carteira.data_referencia)
+        
+            # Calcular exposição da posição aos fatores de risco da carteira e o quanto a posição 
+            # é representativa para a exposição ao fator de risco na carteira
+            exposicao_posicao = ExposicaoCarteira(carteira_simples, self.exposicoes.inputs).exposicao_carteira()
+
+            # Calcular retornos dos fatores de risco
+            fatores_risco = MatrizFatoresRisco(carteira_simples, self.exposicoes.inputs).matriz_cov_ewma()
+
+            # Calcular VaR da posição
+            var_posicao = DataFrame({nome_posicao: [self._calculo_var_matricial(
+                exposicao_posicao.values, 
+                fatores_risco.values, 
+                self.intervalo_confianca.value
+            )]})
+            
+            lista_var.append(var_posicao)
+
+        return DataFrame(concat(lista_var, axis=1))
     
     @staticmethod
     def _calculo_var_matricial(vetor_exposicao: array, matriz_retorno: array, intervalo_confianca: float) -> float:
         return sqrt((vetor_exposicao @ matriz_retorno @ vetor_exposicao.T) * (intervalo_confianca ** 2))
+    
+    @staticmethod
+    def _calculo_var_matricial(vetor_exposicao: array, matriz_retorno: array, intervalo_confianca: float) -> float:
+        return sqrt((vetor_exposicao @ matriz_retorno @ vetor_exposicao.T) * (intervalo_confianca ** 2))
+    
+    def _var_marginal_carteira(self, exposicao: DataFrame) -> DataFrame:
+        """
+        Calcula o VaR marginal de cada fator de risco da carteira.
+        """
+        # Calcular exposições da carteira
+        nomes_fatores_risco = exposicao.columns.to_list()
+
+        # Calcular matriz de covariância dos retornos
+        matriz_cov = self.retornos_fatores_risco.matriz_cov_ewma()
+
+        # Calcuar VaR marginal da carteira e posteriormente transformar em DataFrame
+        var_marginal = self._calcular_var_marginal(
+            exposicao.values, 
+            matriz_cov.values,
+            self._desvio_padrao_carteira(exposicao.values, matriz_cov.values),
+            self.intervalo_confianca.value
+        )
+        
+        return DataFrame(var_marginal, columns=nomes_fatores_risco)
+    
+    def _var_componente_carteira(self, exposicao: DataFrame, var_marginal: DataFrame) -> DataFrame:
+        return DataFrame(
+            self._calcular_var_componente(var_marginal.values, exposicao.values),
+            columns=exposicao.columns.to_list()
+        )
+    
+    @staticmethod
+    def _calcular_var_marginal(
+        vetor_exposicao: array, 
+        matriz_retorno: array, 
+        desvio_padrao_carteira: float,
+        intervalo_confianca: float
+    ) -> array:
+        """
+        Calcula o VaR marginal de um vetor de exposições e uma matriz de retornos.
+        """
+        return abs((intervalo_confianca / desvio_padrao_carteira) * (vetor_exposicao @ matriz_retorno))
+    
+    @staticmethod
+    def _desvio_padrao_carteira(vetor_exposicao: array, matriz_retorno: array) -> float:
+        """
+        Calcula o desvio padrão da carteira a partir do vetor de exposições e da matriz de retornos.
+        """
+        return sqrt(vetor_exposicao @ matriz_retorno @ vetor_exposicao.T)
+    
+    @staticmethod
+    def _calcular_var_componente(var_marginal: array, vetor_exposicao: array) -> array:
+        """
+        Calcula o VaR componente de cada fator de risco da carteira.
+        """
+        return var_marginal * vetor_exposicao
 
 
 class VarHistorico:
@@ -80,6 +203,7 @@ class VarHistorico:
                 else:
                     nocional = self.inputs.acoes_us()
                     cambio = self.inputs.fx()
+                    data_ref = cambio.loc[cambio[Colunas.DATA.value] <= to_datetime(self.carteira.data_referencia)][Colunas.DATA.value].max()
                     cambio = float(cambio.loc[
                         (cambio[Colunas.CAMBIO.value] == TipoFuturo.USDBRL.name) &
                         (cambio[Colunas.DATA.value] == data_ref)
