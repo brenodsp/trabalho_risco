@@ -16,4 +16,4 @@ Criar pasta em sua máquina local, abrir terminal nesta pasta e digitar o códig
 #### c) Digitar código no terminal para ativar ambiente virtual: ".venv\Scripts\activate"
 #### d) Digitar código no terminal para baixar bibliotecas: "pip install -r requirements.txt"
 
-### 3. Consultar respostas no notebook "xxx.pynb"
+### 3. Consultar respostas no notebook "respostas.ipynb"
