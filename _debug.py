@@ -6,7 +6,7 @@ from inputs.data_handler import InputsDataHandler
 from core.fatores_risco.exposicao import ExposicaoCarteira
 from core.fatores_risco.fatores_risco import MatrizFatoresRisco
 from core.renda_fixa.renda_fixa import RendaFixa
-from utils.enums import IntervaloConfianca, AcoesBr, AcoesUs, Opcoes, Futuros, Titulos
+from utils.enums import IntervaloConfianca, AcoesBr, AcoesUs, Opcoes, Futuros, Titulos, TipoVarHistorico
 
 # Pegar inputs
 data_handler = InputsDataHandler()
@@ -22,13 +22,24 @@ posicoes_canonicas = [
     Posicao(Futuros.FUTURO_25, 17, data_handler),
     Posicao(Titulos.TITULO_9, 25, data_handler)
 ]
+posicoes_acoes = [
+    Posicao(AcoesBr.EMBRAER, 1500, data_handler),
+    Posicao(AcoesBr.CASAS_BAHIA, 24500, data_handler),
+    Posicao(AcoesUs.FORD_MOTORS, 1700, data_handler)
+]
 
 carteira_canonica = Carteira(posicoes_canonicas, date(2025, 5, 26))
-# teste = VarHistorico(
-#     carteira_canonica,
-#     MatrizFatoresRisco(carteira_canonica, data_handler),
-#     data_handler
-# ).var_historico_carteira(500, IntervaloConfianca.P99)
+carteira_acoes = Carteira(posicoes_acoes, date(2025, 5, 26))
+
+calc_var = VarHistorico(
+    carteira_acoes,
+    MatrizFatoresRisco(carteira_acoes, data_handler),
+    data_handler,
+    TipoVarHistorico.HULL_WHITE
+)
+var_tve = calc_var.var_historico_carteira(500, IntervaloConfianca.P99)
+perda_esperada = calc_var.perda_esperada(var_tve)
+a = 0
 
 
 # Questões
