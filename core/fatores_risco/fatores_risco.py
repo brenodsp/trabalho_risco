@@ -169,7 +169,7 @@ class CalculosFatoresRisco:
         return lambda_ * valor_calculado + (1 - lambda_) * valor_fator_risco
 
     @classmethod
-    def variancia_ewma(cls, df: DataFrame, agrupar_por: Colunas, lambda_: float = 0.94) -> DataFrame:
+    def variancia_ewma(cls, df: DataFrame, agrupar_por: Colunas, lambda_: float = 0.94, eh_serie_unica: bool = False) -> DataFrame:
         # Validar valor do lambda
         assert lambda_ >= 0 and lambda_ <= 1, "Parâmetro lambda fora do domínio (entre 0 e 1)."
 
@@ -181,15 +181,20 @@ class CalculosFatoresRisco:
             ids = df.loc[df[Colunas.DATA.value] == data].index
 
             # Efetuar cálculo de variância seguindo modelo EWMA
-            df.loc[df[Colunas.DATA.value] == data, Colunas.VARIANCIA_EWMA.value] = (
+            calc_ewma_df = (
                 df.groupby(agrupar_por.value)
                   .apply(lambda group: cls.ewma_recursivo(
                       group[Colunas.VARIANCIA_EWMA.value], pow(group[Colunas.VARIACAO.value], 2), lambda_
                   ))
                   .reset_index()
-                  .filter(items=ids, axis=0)
-                  [0]
             )
+            if eh_serie_unica:
+                calc_ewma = calc_ewma_df.filter(items=ids, axis=1)[ids.to_list()[0]][0]
+            else:
+                calc_ewma = calc_ewma_df.filter(items=ids, axis=0)[0]
+
+            df.loc[df[Colunas.DATA.value] == data, Colunas.VARIANCIA_EWMA.value] = calc_ewma
+            
         return df
 
     
