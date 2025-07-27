@@ -1,8 +1,10 @@
 from datetime import date
 from math import sqrt
 
-from numpy import array, inf
+from numpy import array, inf, log
+from numpy import sum as np_sum
 from pandas import DataFrame, Series, to_datetime, concat
+from scipy.stats import chi2
 
 from core.carteira import Carteira, Posicao
 from core.fatores_risco.black_scholes import bs_implied_vol, bs_price
@@ -531,3 +533,69 @@ class VarHistorico:
     @staticmethod
     def _calcular_volatilidade(cenarios_pnl: Series) -> float:
         return float(cenarios_pnl.std())
+
+
+def backtest_var(violacoes: list[bool], nivel_confianca: float) -> dict:
+    violacoes = array(violacoes)
+    N = len(violacoes)
+    x = np_sum(violacoes)
+    p = 1 - nivel_confianca
+    p_hat = x / N
+
+    # Teste de Kupiec (Cobertura Incondicional)
+    if x == 0 or x == N:
+        LR_uc = 0  # evita log(0)
+    else:
+        LR_uc = -2 * log(
+            ((1 - p) ** (N - x) * p ** x) /
+            ((1 - p_hat) ** (N - x) * p_hat ** x)
+        )
+
+    pval_uc = 1 - chi2.cdf(LR_uc, df=1)
+
+    # Teste de Christoffersen (Independência)
+    n00 = n01 = n10 = n11 = 0
+    for i in range(1, N):
+        prev, curr = violacoes[i - 1], violacoes[i]
+        if prev == 0 and curr == 0:
+            n00 += 1
+        elif prev == 0 and curr == 1:
+            n01 += 1
+        elif prev == 1 and curr == 0:
+            n10 += 1
+        elif prev == 1 and curr == 1:
+            n11 += 1
+
+    total_0 = n00 + n01
+    total_1 = n10 + n11
+    total = total_0 + total_1
+
+    if total_0 == 0 or total_1 == 0:
+        LR_ind = 0
+    else:
+        pi_01 = n01 / total_0 if total_0 > 0 else 0
+        pi_11 = n11 / total_1 if total_1 > 0 else 0
+        pi_hat = (n01 + n11) / total if total > 0 else 0
+
+        L0 = ((1 - pi_hat) ** (n00 + n10)) * (pi_hat ** (n01 + n11))
+        L1 = ((1 - pi_01) ** n00) * (pi_01 ** n01) * ((1 - pi_11) ** n10) * (pi_11 ** n11)
+
+        LR_ind = -2 * log(L0 / L1) if L0 > 0 and L1 > 0 else 0
+
+    pval_ind = 1 - chi2.cdf(LR_ind, df=1)
+
+    # Teste conjunto (LRcc)
+    LR_cc = LR_uc + LR_ind
+    pval_cc = 1 - chi2.cdf(LR_cc, df=2)
+
+    return {
+        "violacoes": int(x),
+        "total": N,
+        "violacoes_esperadas": round(p * N, 2),
+        "Kupiec_LR": round(LR_uc, 4),
+        "Kupiec_p": round(pval_uc, 4),
+        "Christoffersen_LR": round(LR_ind, 4),
+        "Christoffersen_p": round(pval_ind, 4),
+        "LRcc": round(LR_cc, 4),
+        "LRcc_p": round(pval_cc, 4)
+    }
