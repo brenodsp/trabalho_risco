@@ -1,16 +1,19 @@
 from datetime import date
 from math import sqrt
 
-from numpy import array
+from numpy import array, inf, log
+from numpy import sum as np_sum
 from pandas import DataFrame, Series, to_datetime, concat
+from scipy.stats import chi2
 
 from core.carteira import Carteira, Posicao
 from core.fatores_risco.black_scholes import bs_implied_vol, bs_price
 from core.fatores_risco.exposicao import ExposicaoCarteira
-from core.fatores_risco.fatores_risco import MatrizFatoresRisco, nomear_vetor_fator_risco
+from core.fatores_risco.fatores_risco import MatrizFatoresRisco, nomear_vetor_fator_risco, CalculosFatoresRisco
 from core.renda_fixa.renda_fixa import RendaFixa
 from inputs.data_handler import InputsDataHandler
-from utils.enums import IntervaloConfianca, AcoesBr, AcoesUs, Opcoes, Futuros, TipoFuturo, Titulos, Localidade, Colunas
+from utils.enums import IntervaloConfianca, AcoesBr, AcoesUs, Opcoes, Futuros, TipoFuturo, Titulos, \
+                        Localidade, Colunas, TipoVarHistorico
 
 
 class VarParametrico:
@@ -171,15 +174,19 @@ class VarParametrico:
 
 
 class VarHistorico:
+    #TODO: Adicionar metodologia de pesos mais recentes
+    LAMBDA = 0.94
     def __init__(
             self,
             carteira: Carteira,
             retornos: MatrizFatoresRisco, 
-            inputs: InputsDataHandler
+            inputs: InputsDataHandler,
+            tipo: TipoVarHistorico = TipoVarHistorico
     ):
         self.carteira = carteira
         self.retornos = retornos
         self.inputs = inputs
+        self.tipo = tipo
 
     def _gerar_cenarios(self, n_cenarios: int) -> DataFrame:
         retornos = self.retornos.fatores_risco_carteira()
@@ -411,7 +418,6 @@ class VarHistorico:
         # Filtrar janela de cenários de PnL
         datas = pnl_carteira[Colunas.DATA.value].drop_duplicates().reset_index(drop=True)[:n_cenarios]
         return pnl_carteira.loc[pnl_carteira[Colunas.DATA.value].isin(datas)]
-            
 
     @staticmethod
     def _calcular_pnl(qtd: float, preco_referencia: float, preco_cenario: Series) -> Series:
@@ -420,11 +426,98 @@ class VarHistorico:
     def var_historico_carteira(self, n_cenarios: int, intervalo_confianca: IntervaloConfianca) -> float:
         # LEMBRANDO QUE O VAR É UM VALOR ABSOLUTO
         cenarios_pnl = self._gerar_cenarios(n_cenarios).groupby(Colunas.DATA.value).sum().reset_index()
-        return self._calcular_var_historico(
-            cenarios_pnl[Colunas.PNL.value],
-            intervalo_confianca
-        )
+        if self.tipo == TipoVarHistorico.SIMPLES:
+            return self._calcular_var_historico(
+                cenarios_pnl[Colunas.PNL.value],
+                intervalo_confianca
+            )
+        elif self.tipo == TipoVarHistorico.BOUDOUKH:
+            # Calcular pesos baseados no método de Boudoukh (mais recentes)
+            pesos_brutos = array([(1-self.LAMBDA) * (self.LAMBDA)** i for i in range(len(cenarios_pnl))][::-1])
+            somatorio_pesos = pesos_brutos.sum()
+            pesos_normalizados = pesos_brutos / somatorio_pesos
+            cenarios_pnl["peso"] = pesos_normalizados
+            cenarios_pnl = cenarios_pnl.sort_values(Colunas.PNL.value, ascending=True).reset_index(drop=True)
 
+            # Calcular VaR baseado no método de Boudoukh
+            percent = 1 - (int(intervalo_confianca.name.split("P")[1])/100)
+            var = float(cenarios_pnl.loc[cenarios_pnl["peso"].cumsum() >= percent][Colunas.PNL.value].min())
+
+            return abs(var)
+        elif self.tipo == TipoVarHistorico.TVE_POT:
+            # Definir valor limite e excessos no PnL
+            valor_limite = - self._calcular_var_historico(
+                cenarios_pnl[Colunas.PNL.value],
+                intervalo_confianca
+            )
+            limite_percent = int(intervalo_confianca.name.split("P")[1])/100
+            cenarios_pnl["excesso"] = cenarios_pnl[Colunas.PNL.value] - valor_limite
+            num_excessos = int(cenarios_pnl.loc[cenarios_pnl["excesso"] < 0]["excesso"].count())
+
+            # Definir intervalos da distribuição baseado nos excessos
+            lim_superior = float(abs(cenarios_pnl["excesso"].min()))
+            lim_inferior = float(abs(
+                cenarios_pnl.loc[cenarios_pnl["excesso"] < 0]["excesso"].max()
+            ))
+
+            # Definir shape e scale da distribuição
+            shape = 1
+            scale = (lim_superior + lim_inferior) / 2
+
+            # Salvar parâmetros da distribuição de Pareto para posteriori
+            self.pareto_tve = {
+                "shape": shape,
+                "scale": scale,
+                "num_excessos": num_excessos,
+                "lim_inferior": lim_inferior,
+                "lim_superior": lim_superior
+            }
+
+            # Calcular VaR
+            return float(abs(
+                valor_limite + (scale / shape) * (((limite_percent * num_excessos) ** (-shape)) - 1)
+            ))
+        elif self.tipo == TipoVarHistorico.HULL_WHITE:
+            # Utilizar framework de fatores de risco para calcular variância EWMA
+            cenarios_pnl[Colunas.ATIVO.value] = Colunas.PNL.name
+            cenarios_pnl[Colunas.VARIACAO.value] = cenarios_pnl[Colunas.PNL.value]\
+                                                   .pct_change()\
+                                                   .fillna(0)\
+                                                   .replace([-inf, inf], 0)
+
+
+            # Calcular volatilidade dos cenários de PnL
+            ewma_df = CalculosFatoresRisco.variancia_ewma(
+                cenarios_pnl,
+                Colunas.ATIVO,
+                self.LAMBDA,
+                eh_serie_unica=True
+            )
+            ewma_df[Colunas.VOLATILIDADE.value] = ewma_df[Colunas.VARIANCIA_EWMA.value].apply(lambda x: sqrt(x))
+
+            # Calcular z valor para cálculo de VaR
+            ewma_df["z"] = ewma_df[Colunas.VARIACAO.value] / ewma_df[Colunas.VOLATILIDADE.value]
+            z_valor = -self._calcular_var_historico(
+                ewma_df["z"],
+                intervalo_confianca
+            )
+
+            # Calcular desvio padrão da série de PnL
+            dp = self._calcular_volatilidade(cenarios_pnl[Colunas.PNL.value])
+
+            # Calcular VaR baseado no método Hull-White
+            return float(abs(z_valor * dp))
+
+        else:
+            raise ValueError("Tipo de VaR histórico não implementado.")
+        
+    def perda_esperada(self, var_tve: float) -> float:
+        assert hasattr(self, "pareto_tve"), "Parâmetros da distribuição de Pareto não foram definidos."
+        assert self.tipo == TipoVarHistorico.TVE_POT, "Não é possível calcular perda esperada se o tipo de VaR histórico não for TVE/POT."
+        
+        cvar_pratico = self.pareto_tve["scale"]
+        return float(var_tve + cvar_pratico)
+        
     @staticmethod
     def _calcular_var_historico(
         cenarios_pnl: Series, 
@@ -432,8 +525,77 @@ class VarHistorico:
     ) -> float:
         ic = int(intervalo_confianca.name.split("P")[1])/100
         return float(abs(cenarios_pnl.quantile(1-ic)))
-        
-    
+           
     def estresse_carteira(self, n_cenarios: int) -> float:
         cenarios_pnl = self._gerar_cenarios(n_cenarios).groupby(Colunas.DATA.value).sum().reset_index()
         return abs(float(cenarios_pnl[Colunas.PNL.value].min()))
+    
+    @staticmethod
+    def _calcular_volatilidade(cenarios_pnl: Series) -> float:
+        return float(cenarios_pnl.std())
+
+
+def backtest_var(violacoes: list[bool], nivel_confianca: float) -> dict:
+    violacoes = array(violacoes)
+    N = len(violacoes)
+    x = np_sum(violacoes)
+    p = 1 - nivel_confianca
+    p_hat = x / N
+
+    # Teste de Kupiec (Cobertura Incondicional)
+    if x == 0 or x == N:
+        LR_uc = 0  # evita log(0)
+    else:
+        LR_uc = -2 * log(
+            ((1 - p) ** (N - x) * p ** x) /
+            ((1 - p_hat) ** (N - x) * p_hat ** x)
+        )
+
+    pval_uc = 1 - chi2.cdf(LR_uc, df=1)
+
+    # Teste de Christoffersen (Independência)
+    n00 = n01 = n10 = n11 = 0
+    for i in range(1, N):
+        prev, curr = violacoes[i - 1], violacoes[i]
+        if prev == 0 and curr == 0:
+            n00 += 1
+        elif prev == 0 and curr == 1:
+            n01 += 1
+        elif prev == 1 and curr == 0:
+            n10 += 1
+        elif prev == 1 and curr == 1:
+            n11 += 1
+
+    total_0 = n00 + n01
+    total_1 = n10 + n11
+    total = total_0 + total_1
+
+    if total_0 == 0 or total_1 == 0:
+        LR_ind = 0
+    else:
+        pi_01 = n01 / total_0 if total_0 > 0 else 0
+        pi_11 = n11 / total_1 if total_1 > 0 else 0
+        pi_hat = (n01 + n11) / total if total > 0 else 0
+
+        L0 = ((1 - pi_hat) ** (n00 + n10)) * (pi_hat ** (n01 + n11))
+        L1 = ((1 - pi_01) ** n00) * (pi_01 ** n01) * ((1 - pi_11) ** n10) * (pi_11 ** n11)
+
+        LR_ind = -2 * log(L0 / L1) if L0 > 0 and L1 > 0 else 0
+
+    pval_ind = 1 - chi2.cdf(LR_ind, df=1)
+
+    # Teste conjunto (LRcc)
+    LR_cc = LR_uc + LR_ind
+    pval_cc = 1 - chi2.cdf(LR_cc, df=2)
+
+    return {
+        "violacoes": int(x),
+        "total": N,
+        "violacoes_esperadas": round(p * N, 2),
+        "Kupiec_LR": round(LR_uc, 4),
+        "Kupiec_p": round(pval_uc, 4),
+        "Christoffersen_LR": round(LR_ind, 4),
+        "Christoffersen_p": round(pval_ind, 4),
+        "LRcc": round(LR_cc, 4),
+        "LRcc_p": round(pval_cc, 4)
+    }

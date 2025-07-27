@@ -168,3 +168,9 @@ class FatoresRisco(Enum):
 class Localidade(Enum):
     BR = auto()
     US = auto()
+
+class TipoVarHistorico(Enum):
+    BOUDOUKH = auto()
+    HULL_WHITE = auto()
+    SIMPLES = auto()
+    TVE_POT = auto()
