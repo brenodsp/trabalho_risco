@@ -10,7 +10,8 @@ from core.fatores_risco.exposicao import ExposicaoCarteira
 from core.fatores_risco.fatores_risco import MatrizFatoresRisco, nomear_vetor_fator_risco
 from core.renda_fixa.renda_fixa import RendaFixa
 from inputs.data_handler import InputsDataHandler
-from utils.enums import IntervaloConfianca, AcoesBr, AcoesUs, Opcoes, Futuros, TipoFuturo, Titulos, Localidade, Colunas
+from utils.enums import IntervaloConfianca, AcoesBr, AcoesUs, Opcoes, Futuros, TipoFuturo, Titulos, \
+                        Localidade, Colunas, TipoVarHistorico
 
 
 class VarParametrico:
@@ -171,15 +172,19 @@ class VarParametrico:
 
 
 class VarHistorico:
+    #TODO: Adicionar metodologia de pesos mais recentes
+    LAMBDA = 0.94
     def __init__(
             self,
             carteira: Carteira,
             retornos: MatrizFatoresRisco, 
-            inputs: InputsDataHandler
+            inputs: InputsDataHandler,
+            tipo: TipoVarHistorico = TipoVarHistorico
     ):
         self.carteira = carteira
         self.retornos = retornos
         self.inputs = inputs
+        self.tipo = tipo
 
     def _gerar_cenarios(self, n_cenarios: int) -> DataFrame:
         retornos = self.retornos.fatores_risco_carteira()
@@ -420,10 +425,29 @@ class VarHistorico:
     def var_historico_carteira(self, n_cenarios: int, intervalo_confianca: IntervaloConfianca) -> float:
         # LEMBRANDO QUE O VAR É UM VALOR ABSOLUTO
         cenarios_pnl = self._gerar_cenarios(n_cenarios).groupby(Colunas.DATA.value).sum().reset_index()
-        return self._calcular_var_historico(
-            cenarios_pnl[Colunas.PNL.value],
-            intervalo_confianca
-        )
+        if self.tipo == TipoVarHistorico.SIMPLES:
+            return self._calcular_var_historico(
+                cenarios_pnl[Colunas.PNL.value],
+                intervalo_confianca
+            )
+        elif self.tipo == TipoVarHistorico.BOUDOUKH:
+            # Calcular pesos baseados no método de Boudoukh (mais recentes)
+            pesos_brutos = array([(1-self.LAMBDA) * (self.LAMBDA)** i for i in range(len(cenarios_pnl))][::-1])
+            somatorio_pesos = pesos_brutos.sum()
+            pesos_normalizados = pesos_brutos / somatorio_pesos
+            cenarios_pnl["peso"] = pesos_normalizados
+            cenarios_pnl = cenarios_pnl.sort_values(Colunas.PNL.value, ascending=True).reset_index(drop=True)
+
+            # Calcular VaR baseado no método de Boudoukh
+            percent = 1 - (int(intervalo_confianca.name.split("P")[1])/100)
+            var = float(cenarios_pnl.loc[cenarios_pnl["peso"].cumsum() >= percent][Colunas.PNL.value].min())
+
+            return abs(var)
+    
+    #TODO: Implementar metodologia de cenários de TVE
+    def var_historico_carteira_tve(self, n_cenarios: int, intervalo_confianca: IntervaloConfianca) -> float:
+        pass
+        
 
     @staticmethod
     def _calcular_var_historico(
