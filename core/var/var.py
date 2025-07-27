@@ -443,10 +443,46 @@ class VarHistorico:
             var = float(cenarios_pnl.loc[cenarios_pnl["peso"].cumsum() >= percent][Colunas.PNL.value].min())
 
             return abs(var)
-    
-    #TODO: Implementar metodologia de cenários de TVE
-    def var_historico_carteira_tve(self, n_cenarios: int, intervalo_confianca: IntervaloConfianca) -> float:
-        pass
+        elif self.tipo == TipoVarHistorico.TVE_POT:
+            # Definir valor limite e excessos no PnL
+            valor_limite = - self._calcular_var_historico(
+                cenarios_pnl[Colunas.PNL.value],
+                intervalo_confianca
+            )
+            limite_percent = int(intervalo_confianca.name.split("P")[1])/100
+            cenarios_pnl["excesso"] = cenarios_pnl[Colunas.PNL.value] - valor_limite
+            num_excessos = int(cenarios_pnl.loc[cenarios_pnl["excesso"] < 0]["excesso"].count())
+
+            # Definir intervalos da distribuição baseado nos excessos
+            lim_superior = float(abs(cenarios_pnl["excesso"].min()))
+            lim_inferior = float(abs(
+                cenarios_pnl.loc[cenarios_pnl["excesso"] < 0]["excesso"].max()
+            ))
+
+            # Definir shape e scale da distribuição
+            shape = 1
+            scale = (lim_superior + lim_inferior) / 2
+
+            # Salvar parâmetros da distribuição de Pareto para posteriori
+            self.pareto_tve = {
+                "shape": shape,
+                "scale": scale,
+                "num_excessos": num_excessos,
+                "lim_inferior": lim_inferior,
+                "lim_superior": lim_superior
+            }
+
+            # Calcular VaR
+            return float(abs(
+                valor_limite + (scale / shape) * (((limite_percent * num_excessos) ** (-shape)) - 1)
+            ))
+
+    def perda_esperada(self, var_tve: float) -> float:
+        assert hasattr(self, "pareto_tve"), "Parâmetros da distribuição de Pareto não foram definidos."
+        assert self.tipo == TipoVarHistorico.TVE_POT, "Não é possível calcular perda esperada se o tipo de VaR histórico não for TVE/POT."
+        
+        cvar_pratico = self.pareto_tve["scale"]
+        return float(var_tve + cvar_pratico)
         
 
     @staticmethod
