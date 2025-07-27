@@ -181,7 +181,7 @@ class VarHistorico:
             carteira: Carteira,
             retornos: MatrizFatoresRisco, 
             inputs: InputsDataHandler,
-            tipo: TipoVarHistorico = TipoVarHistorico
+            tipo: TipoVarHistorico = TipoVarHistorico.SIMPLES
     ):
         self.carteira = carteira
         self.retornos = retornos
