@@ -179,7 +179,11 @@ class Exposicao:
                     pu = rf2.pu()
 
                     # Calcular exposição
-                    w = self._exposicao_rf_br(duration_modificada, pu, self.posicao.quantidade)
+                    w = self._exposicao_juros(
+                        self.posicao.quantidade,
+                        pu, 
+                        duration_modificada
+                    )
 
                     w_df = self._criar_df_exposicao(nomear_vetor_fator_risco(fr, self.posicao), w)
                     exposicoes_fatores_risco.append(w_df)
@@ -255,7 +259,3 @@ class Exposicao:
     @staticmethod
     def _exposicao_futuros(quantidade: float, tamanho_contrato: float) -> float:
         return quantidade * tamanho_contrato
-    
-    @staticmethod
-    def _exposicao_rf_br(duration_modificada: float, pu: float, quantidade: float) -> float:
-        return duration_modificada * pu * quantidade
