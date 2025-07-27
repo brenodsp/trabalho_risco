@@ -388,11 +388,18 @@ class VarHistorico:
                 # Calcular retornos do título
                 curva_juros[Colunas.RETORNO.value] = curva_juros["pu"].pct_change().fillna(0)
 
+                # Calcular nocional ajustado do título
+                data_ref = curva_juros.loc[curva_juros[Colunas.DATA.value] <= to_datetime(self.carteira.data_referencia)][Colunas.DATA.value].max()
+                ultimo_cambio = float(curva_juros.loc[
+                    curva_juros[Colunas.DATA.value] == data_ref
+                ][TipoFuturo.USDBRL.name].values[0])
+                nocional_ajustado = rf.VALOR_FACE * ultimo_cambio
+                
                 # Calcular PnL
                 curva_juros[Colunas.PNL.value] = self._calcular_pnl(
                     posicao.quantidade, 
-                    pu, 
-                    pu * (1 + curva_juros[Colunas.RETORNO.value])
+                    nocional_ajustado, 
+                    nocional_ajustado * (1 + curva_juros[Colunas.RETORNO.value])
                 )
 
                 # Adicionar coluna de PnL ao DataFrame de retornos
