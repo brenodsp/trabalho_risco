@@ -1,13 +1,13 @@
 from datetime import date
 from math import sqrt
 
-from numpy import array
+from numpy import array, inf
 from pandas import DataFrame, Series, to_datetime, concat
 
 from core.carteira import Carteira, Posicao
 from core.fatores_risco.black_scholes import bs_implied_vol, bs_price
 from core.fatores_risco.exposicao import ExposicaoCarteira
-from core.fatores_risco.fatores_risco import MatrizFatoresRisco, nomear_vetor_fator_risco
+from core.fatores_risco.fatores_risco import MatrizFatoresRisco, nomear_vetor_fator_risco, CalculosFatoresRisco
 from core.renda_fixa.renda_fixa import RendaFixa
 from inputs.data_handler import InputsDataHandler
 from utils.enums import IntervaloConfianca, AcoesBr, AcoesUs, Opcoes, Futuros, TipoFuturo, Titulos, \
@@ -416,7 +416,6 @@ class VarHistorico:
         # Filtrar janela de cenários de PnL
         datas = pnl_carteira[Colunas.DATA.value].drop_duplicates().reset_index(drop=True)[:n_cenarios]
         return pnl_carteira.loc[pnl_carteira[Colunas.DATA.value].isin(datas)]
-            
 
     @staticmethod
     def _calcular_pnl(qtd: float, preco_referencia: float, preco_cenario: Series) -> Series:
@@ -476,7 +475,40 @@ class VarHistorico:
             return float(abs(
                 valor_limite + (scale / shape) * (((limite_percent * num_excessos) ** (-shape)) - 1)
             ))
+        elif self.tipo == TipoVarHistorico.HULL_WHITE:
+            # Utilizar framework de fatores de risco para calcular variância EWMA
+            cenarios_pnl[Colunas.ATIVO.value] = Colunas.PNL.name
+            cenarios_pnl[Colunas.VARIACAO.value] = cenarios_pnl[Colunas.PNL.value]\
+                                                   .pct_change()\
+                                                   .fillna(0)\
+                                                   .replace([-inf, inf], 0)
 
+
+            # Calcular volatilidade dos cenários de PnL
+            ewma_df = CalculosFatoresRisco.variancia_ewma(
+                cenarios_pnl,
+                Colunas.ATIVO,
+                self.LAMBDA,
+                eh_serie_unica=True
+            )
+            ewma_df[Colunas.VOLATILIDADE.value] = ewma_df[Colunas.VARIANCIA_EWMA.value].apply(lambda x: sqrt(x))
+
+            # Calcular z valor para cálculo de VaR
+            ewma_df["z"] = ewma_df[Colunas.VARIACAO.value] / ewma_df[Colunas.VOLATILIDADE.value]
+            z_valor = -self._calcular_var_historico(
+                ewma_df["z"],
+                intervalo_confianca
+            )
+
+            # Calcular desvio padrão da série de PnL
+            dp = self._calcular_volatilidade(cenarios_pnl[Colunas.PNL.value])
+
+            # Calcular VaR baseado no método Hull-White
+            return float(abs(z_valor * dp))
+
+        else:
+            raise ValueError("Tipo de VaR histórico não implementado.")
+        
     def perda_esperada(self, var_tve: float) -> float:
         assert hasattr(self, "pareto_tve"), "Parâmetros da distribuição de Pareto não foram definidos."
         assert self.tipo == TipoVarHistorico.TVE_POT, "Não é possível calcular perda esperada se o tipo de VaR histórico não for TVE/POT."
@@ -484,7 +516,6 @@ class VarHistorico:
         cvar_pratico = self.pareto_tve["scale"]
         return float(var_tve + cvar_pratico)
         
-
     @staticmethod
     def _calcular_var_historico(
         cenarios_pnl: Series, 
@@ -492,8 +523,11 @@ class VarHistorico:
     ) -> float:
         ic = int(intervalo_confianca.name.split("P")[1])/100
         return float(abs(cenarios_pnl.quantile(1-ic)))
-        
-    
+           
     def estresse_carteira(self, n_cenarios: int) -> float:
         cenarios_pnl = self._gerar_cenarios(n_cenarios).groupby(Colunas.DATA.value).sum().reset_index()
         return abs(float(cenarios_pnl[Colunas.PNL.value].min()))
+    
+    @staticmethod
+    def _calcular_volatilidade(cenarios_pnl: Series) -> float:
+        return float(cenarios_pnl.std())
