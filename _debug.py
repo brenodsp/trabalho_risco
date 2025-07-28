@@ -13,13 +13,7 @@ data_handler = InputsDataHandler()
 
 # Definir posições da carteira
 posicoes_canonicas = [
-    Posicao(AcoesBr.EMBRAER, 1500, data_handler),
-    Posicao(AcoesBr.CASAS_BAHIA, 24500, data_handler),
-    Posicao(AcoesUs.FORD_MOTORS, 1700, data_handler),
-    Posicao(Opcoes.OPCAO_9, 1.5, data_handler),
-    Posicao(Futuros.FUTURO_15, 0.6, data_handler),
-    Posicao(Futuros.FUTURO_9, 0.2, data_handler),
-    Posicao(Futuros.FUTURO_25, 17, data_handler),
+    # Posicao(Futuros.FUTURO_25, 17, data_handler),
     Posicao(Titulos.TITULO_9, 25, data_handler)
 ]
 posicoes_acoes = [
@@ -32,14 +26,13 @@ carteira_canonica = Carteira(posicoes_canonicas, date(2025, 5, 26))
 carteira_acoes = Carteira(posicoes_acoes, date(2025, 5, 26))
 
 calc_var = VarHistorico(
-    carteira_acoes,
-    MatrizFatoresRisco(carteira_acoes, data_handler),
-    data_handler,
-    TipoVarHistorico.HULL_WHITE
+    carteira_canonica,
+    MatrizFatoresRisco(carteira_canonica, data_handler),
+    data_handler
 )
 var_tve = calc_var.var_historico_carteira(500, IntervaloConfianca.P99)
-perda_esperada = calc_var.perda_esperada(var_tve)
-a = 0
+# perda_esperada = calc_var.perda_esperada(var_tve)
+# a = 0
 
 
 # Questões
@@ -63,33 +56,33 @@ print(f"[{datetime.now()}] Solucionando questão c)")
 
 ## d
 print(f"[{datetime.now()}] Solucionando questão d)")
-calculadora_var_parametrico = VarParametrico(
-    carteira_canonica,
-    ExposicaoCarteira(carteira_canonica, data_handler),
-    fatores_risco,
-    IntervaloConfianca.P99
-).var_parametrico_posicao()
+# calculadora_var_parametrico = VarParametrico(
+#     carteira_canonica,
+#     ExposicaoCarteira(carteira_canonica, data_handler),
+#     fatores_risco,
+#     IntervaloConfianca.P99
+# ).var_parametrico_posicao()
 
-d = {
-    p: calculadora_var_parametrico.var_parametrico_posicao(
-        carteira_canonica.__getattribute__(p), 
-        carteira_canonica.data_referencia,
-        data_handler
-        )
-    for p in carteira_canonica.__dict__
-    if "POSICAO" in p
-}
+# d = {
+#     p: calculadora_var_parametrico.var_parametrico_posicao(
+#         carteira_canonica.__getattribute__(p), 
+#         carteira_canonica.data_referencia,
+#         data_handler
+#         )
+#     for p in carteira_canonica.__dict__
+#     if "POSICAO" in p
+# }
 
-## e
-print(f"[{datetime.now()}] Solucionando questão e)")
-e = calculadora_var_parametrico.var_parametrico_carteira()
+# ## e
+# print(f"[{datetime.now()}] Solucionando questão e)")
+# e = calculadora_var_parametrico.var_parametrico_carteira()
 
-## h
-h = {
-    posicao: f"{round(d[posicao]/e, 6)}%"
-    for posicao in d
-}
+# ## h
+# h = {
+#     posicao: f"{round(d[posicao]/e, 6)}%"
+#     for posicao in d
+# }
 
-## i
-print(f"[{datetime.now()}] Solucionando questão i)")
-i = 0
+# ## i
+# print(f"[{datetime.now()}] Solucionando questão i)")
+# i = 0

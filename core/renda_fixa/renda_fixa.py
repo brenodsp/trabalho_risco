@@ -126,34 +126,23 @@ class RendaFixa:
         )
 
     def pu(self) -> float:
-        # TODO: talvez implementar depois método para juros BR
         if self.localidade == Localidade.BR:
-            return None
+            assert self.taxa is not None, "Taxa deve ser informada para cálculo de PU."
+            return float(
+                self.VALOR_FACE / ((1 + self.taxa/100) ** (self.periodo / 252))
+            )
         
         # TODO: condicionar lógica à localidade em caso de posterior aplicação da regra BR 
         dias_totais = (self.vencimento - self.data_referencia).days
 
-        # Ajustar valor face pelo valor do dólar, se necessário
-        if self.localidade == Localidade.US:
-            fx = self.inputs_data_handler.fx()
-            data_ref = fx.loc[fx[Colunas.DATA.value] <= self.data_referencia][Colunas.DATA.value].max()
-            dolar = float(fx.loc[
-                (fx[Colunas.DATA.value] == data_ref) &
-                (fx[Colunas.CAMBIO.value] == TipoFuturo.USDBRL.name)
-            ][Colunas.VALOR.value].values[0])
-        else:
-            dolar = 1.0
-
-        nocional_ajustado = self.VALOR_FACE * dolar
-
         # ASSUMINDO PAGAMENTO DE CUPOM SEMESTRAL
-        valor_cupom, taxa, total_periodos = self._base_semestral(nocional_ajustado, self.cupom/100, self.taxa/100, dias_totais)
+        valor_cupom, taxa, total_periodos = self._base_semestral(self.VALOR_FACE, self.cupom/100, self.taxa/100, dias_totais)
 
         # Calcular soma dos VPLs dos fluxos de caixa de cupons
         vpl_cupons = sum([self._vpl(valor_cupom, taxa, t) for t in range(1, total_periodos + 1)])
 
         # Calcular VPL da curva
-        vpl_curva = self._vpl(nocional_ajustado, taxa, total_periodos)
+        vpl_curva = self._vpl(self.VALOR_FACE, taxa, total_periodos)
 
         return vpl_cupons + vpl_curva
 

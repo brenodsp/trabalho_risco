@@ -74,7 +74,8 @@ class Exposicao:
             return concat(exposicoes_fatores_risco)
 
         # Calcular exposição para futuros
-        if isinstance(self.posicao.ativo, Futuros):
+        #TODO: Futuramente expandir regra para comportar títulos NTN-B e NTN-F
+        if isinstance(self.posicao.ativo, Futuros) and self.posicao.produto not in [TipoFuturo.DI]:
             df_futuros = self.inputs.futuros()
             contratos = float(df_futuros.loc[df_futuros[Colunas.ID.value] == self.posicao.ativo.value]["tamanho_contrato"].values[0])
             if not ((FatoresRisco.CAMBIO_USDBRL in self.posicao.fatores_risco) or (FatoresRisco.CAMBIO_USDOUTROS in self.posicao.fatores_risco)):
@@ -151,6 +152,39 @@ class Exposicao:
             elif fr == FatoresRisco.JUROS:
                 # Se for proveniente de futuros, apenas utilizar exposição calculada para esse tipo de ativo
                 if isinstance(self.posicao.ativo, Futuros):
+                    # Utilizar framework de cálculo de renda fixa para extrair informações da curva DI
+                    rf1 = RendaFixa(
+                        self.data_referencia,
+                        self.posicao.vencimento,
+                        self.posicao.localidade,
+                        self.inputs
+                    )
+
+                    # Extrair taxa do dia de referência
+                    curva_di = rf1.curva_juros()
+                    data_ref = curva_di.loc[curva_di[Colunas.DATA.value] <= self.data_referencia][Colunas.DATA.value].max()
+                    taxa_di = float(curva_di.loc[
+                        curva_di[Colunas.DATA.value] == data_ref 
+                    ][Colunas.VALOR.value].values[0])
+
+                    # Calcular duration modificada e PU
+                    rf2 = RendaFixa(
+                        self.data_referencia,
+                        self.posicao.vencimento,
+                        self.posicao.localidade,
+                        self.inputs,
+                        taxa=taxa_di
+                    )
+                    duration_modificada = rf2.duration_modificada()
+                    pu = rf2.pu()
+
+                    # Calcular exposição
+                    w = self._exposicao_juros(
+                        self.posicao.quantidade,
+                        pu, 
+                        duration_modificada
+                    )
+
                     w_df = self._criar_df_exposicao(nomear_vetor_fator_risco(fr, self.posicao), w)
                     exposicoes_fatores_risco.append(w_df)
                     continue
